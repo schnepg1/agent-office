@@ -91,12 +91,15 @@ export const coworkHandlers = {
     const lobby = coworkLobbyFor(ctx);
     const intention = str(msg.intention, 120).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim();
     const status = str(msg.status, 60).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim();
-    const participant = lobby.profile(c.id, {
+    lobby.profile(c.id, {
       name: c.peer.name,
       intention,
       status,
       zone: coworkZoneAt(c.peer.x),
     });
+    // Profiles can arrive before the next presence/sync refresh; include the
+    // authoritative guest, mute, seat and zone fields in this update too.
+    const participant = getParticipant(ctx, c);
     broadcast(ctx, { t: 'cowork.update', participant });
     ctx.sendTo(c, { t: 'cowork.saved' });
   },

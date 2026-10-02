@@ -24,6 +24,8 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
   let changingForZone = false;
   let hostForcedMute = false;
   let zoneBadge: HTMLButtonElement | undefined;
+  let areaLabel: HTMLElement | undefined;
+  let peopleHeading: HTMLElement | undefined;
 
   function memberRow(p: CoworkParticipant): HTMLElement {
     const mine = p.peerId === store.you;
@@ -50,6 +52,7 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
   function refreshList() {
     if (!list) return;
     const people = store.coworking.participants;
+    if (peopleHeading) peopleHeading.textContent = `People here · ${people.length}`;
     list.replaceChildren(...people.map(memberRow));
     if (!people.length) list.append(h('p.cowork-empty', {}, 'You are first in the lobby. Share an invite to bring someone in.'));
   }
@@ -72,10 +75,12 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
   }
 
   function updateZoneBadge() {
-    if (!zoneBadge) return;
     const zone = coworkZoneAt(ctx.player.pos.x);
+    const label = zone === 'quiet' ? 'Quiet desks' : 'Talk café';
+    if (areaLabel) areaLabel.textContent = label;
+    if (!zoneBadge) return;
     zoneBadge.hidden = !lobby();
-    zoneBadge.textContent = `${zone === 'quiet' ? 'Quiet desks' : 'Talk café'}${zone === 'quiet' && ctx.voice.inVoice ? ' · mic muted' : ''} · Y`;
+    zoneBadge.textContent = `${label}${zone === 'quiet' && ctx.voice.inVoice ? ' · mic muted' : ''} · Y`;
     zoneBadge.setAttribute('aria-label', `${zone === 'quiet' ? 'Quiet desk zone' : 'Talk café zone'}; press Y to open coworking`);
   }
 
@@ -122,7 +127,7 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
           h('h3', {}, 'Your work'),
           h('label', {}, 'Intention', intention),
           h('label', {}, 'Status', status),
-          h('div.cowork-zone-info', {}, h('strong', {}, mine?.zone === 'talk' ? 'Talk café' : 'Quiet desks'), h('span', {}, 'Your area follows where you are in the lobby.')),
+          h('div.cowork-zone-info', {}, areaLabel = h('strong', {}, coworkZoneAt(ctx.player.pos.x) === 'talk' ? 'Talk café' : 'Quiet desks'), h('span', {}, 'Your area follows where you are in the lobby.')),
           h('div.cowork-form-actions', {}, save),
           h('h3', {}, 'Desk chair'),
           h('p.cowork-note', {}, 'These are the visible chairs at the room’s built-in desks. Walk to a chair or sit here to claim it.'),
@@ -130,14 +135,14 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
           h('div.cowork-form-actions', {}, claim, release),
           h('p.cowork-note', {}, 'Quiet is on the west workstation side; the talk café is east by the lounge. Audio stays peer-to-peer and still uses the same WebRTC connections.'),
         ),
-        h('section.cowork-roster', {}, h('h3', {}, `People here · ${store.coworking.participants.length}`), list),
+        h('section.cowork-roster', {}, peopleHeading = h('h3', {}, `People here · ${store.coworking.participants.length}`), list),
       ),
     );
-    modal = openModal(content, { onClose: () => { modal = undefined; list = undefined; } });
-    intention.focus();
+    modal = openModal(content, { onClose: () => { modal = undefined; list = undefined; areaLabel = undefined; peopleHeading = undefined; } });
+    requestAnimationFrame(() => intention.focus());
   }
 
-  ctx.keys.bind({ code: 'KeyY', when: lobby, repeat: false, run: () => { show(); } });
+  ctx.keys.bind({ code: 'KeyY', when: lobby, repeat: false, preventDefault: true, run: () => { show(); } });
   ctx.messages.on('welcome', () => {
     hostForcedMute = guestIsHostMuted();
     if (hostForcedMute) ctx.voice.setMuted(true);
