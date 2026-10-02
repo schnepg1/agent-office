@@ -24,14 +24,14 @@ function requireHost(ctx: Ctx, req: http.IncomingMessage, res: http.ServerRespon
 
 export const guestRoutes = {
   list: {
-    path: '/api/guest/invitations', auth: 'session', method: 'GET',
+    path: '/api/guest/invitations', auth: 'session', method: 'GET', lobbyOnly: true,
     handle(ctx, { res, session }) {
       if (!admin(ctx, session)) return send(res, 403, { error: 'Only hosts can manage guest invitations' });
       return send(res, 200, { invitations: ctx.guests.list() });
     },
   },
   create: {
-    path: '/api/guest/invitations', auth: 'session', method: 'POST',
+    path: '/api/guest/invitations', auth: 'session', method: 'POST', lobbyOnly: true,
     async handle(ctx, { req, res, session }) {
       if (!requireHost(ctx, req, res, session)) return;
       const body = await jsonBody(req);
@@ -51,7 +51,7 @@ export const guestRoutes = {
     },
   },
   revoke: {
-    prefix: '/api/guest/invitations/', auth: 'session', method: 'DELETE',
+    prefix: '/api/guest/invitations/', auth: 'session', method: 'DELETE', lobbyOnly: true,
     handle(ctx, { req, res, path, session }) {
       if (!requireHost(ctx, req, res, session)) return;
       const id = path.slice('/api/guest/invitations/'.length);
@@ -67,7 +67,7 @@ export const guestRoutes = {
     },
   },
   sessions: {
-    path: '/api/guest/sessions', auth: 'session', method: 'GET',
+    path: '/api/guest/sessions', auth: 'session', method: 'GET', lobbyOnly: true,
     handle(ctx, { res, session }) {
       if (!admin(ctx, session)) return send(res, 403, { error: 'Only hosts can manage guest sessions' });
       const sessions = [...ctx.clients.values()].filter(isGuestClient).map((c) => ({ id: c.guestId!, name: c.peer.name, floor: c.peer.floor ?? null, muted: !!c.guestMuted }));
@@ -75,7 +75,7 @@ export const guestRoutes = {
     },
   },
   revokeSession: {
-    prefix: '/api/guest/sessions/', auth: 'session', method: 'DELETE',
+    prefix: '/api/guest/sessions/', auth: 'session', method: 'DELETE', lobbyOnly: true,
     handle(ctx, { req, res, path, session }) {
       if (!requireHost(ctx, req, res, session)) return;
       const id = path.slice('/api/guest/sessions/'.length);

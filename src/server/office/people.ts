@@ -17,7 +17,10 @@ export function people(ctx: Ctx): People {
     return a ? { account: { name: a.name, role: a.role }, admin: a.role === 'admin', ...lobbyMode }
       : { admin: !accountId, ...lobbyMode };
   };
-  const meOfClient = (c: Client) => meOf(c.accountId, c.guestId ? ctx.guests.session(c.guestId)?.info : undefined);
+  const meOfClient = (c: Client) => {
+    const guest = c.guestId ? ctx.guests.session(c.guestId) : undefined;
+    return meOf(c.accountId, guest ? { ...guest.info, muted: !!guest.muted } : undefined);
+  };
   /** Still signed in: the account wasn't revoked, and the shared password wasn't switched off. */
   const stillIn = (c: Client) => c.guestId ? !!ctx.guests.session(c.guestId) : c.accountId ? !!ctx.accounts.get(c.accountId) : ctx.accounts.sharedPassword;
   const signOut = (c: Client) => {

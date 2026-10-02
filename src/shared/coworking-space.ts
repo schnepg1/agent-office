@@ -9,6 +9,8 @@ export interface GuestAccess {
 
 export interface GuestInfo extends GuestAccess {
   name: string;
+  /** Set only by host moderation; independent of a guest's browser mute setting. */
+  muted?: boolean;
 }
 
 export interface GuestInvitationInfo {

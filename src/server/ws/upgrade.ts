@@ -39,7 +39,7 @@ export function acceptWebSockets(ctx: Ctx, server: http.Server | https.Server) {
     if (session.guestId) {
       const active = ctx.guests.session(session.guestId);
       if (!active) return refuseUpgrade(socket);
-      session.guest = active.info;
+      session.guest = { ...active.info, muted: !!active.muted };
     }
     wss.handleUpgrade(req, socket, head, (ws) => onConnection(ctx, ws, url, session));
   });

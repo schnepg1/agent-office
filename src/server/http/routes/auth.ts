@@ -117,5 +117,5 @@ export const authRoutes = {
     }
     return send(res, 200, { ok: true }, { 'set-cookie': ctx.auth.clearCookie(req) });
   } },
-  whoami: { path: '/api/whoami', auth: 'session', guest: true, handle: (ctx, { res, session }) => send(res, 200, { ok: true, me: ctx.meOf(session.account?.id, session.guest) }) },
+  whoami: { path: '/api/whoami', auth: 'session', guest: true, lobbyOnly: true, handle: (ctx, { res, session }) => send(res, 200, { ok: true, me: ctx.meOf(session.account?.id, session.guest) }) },
 } satisfies Record<string, Route>;

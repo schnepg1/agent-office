@@ -27,7 +27,7 @@ interface Answers {
  */
 export type Route = Where &
   Answers &
-  { guest?: boolean } &
+  { guest?: boolean; lobbyOnly?: boolean } &
   (
     | { auth: 'public'; handle(ctx: Ctx, r: RouteRequest): unknown }
     | { auth: 'session'; handle(ctx: Ctx, r: RouteRequest & { session: Session }): unknown }
@@ -50,8 +50,12 @@ export function requestHandler(ctx: Ctx, routes: readonly Route[]) {
       const tunneled = tunneledPort(req, cfg.port, cfg.tailnet);
       const svc = tunneled ? ctx.services.lookup(tunneled) : undefined;
       if (tunneled && svc) {
+        if (cfg.lobbyOnly) return send(res, 403, { error: 'Service tunnels are disabled in lobby-only mode' });
+        if (auth.fromAnyGuestCookie(req)) return send(res, 403, { error: 'Guests cannot access service tunnels' });
         if (req.method === 'POST' && req.url === RELAY_LOGIN) return await login(ctx, req, res);
-        if (!auth.fromAnyCookie(req)) return signInPage(res, tunneled, loginOptions(ctx));
+        if (!auth.fromAnyCookie(req)) {
+          return signInPage(res, tunneled, loginOptions(ctx));
+        }
         if (svc === 'gone') return stoppedPage(res, tunneled);
         return relayRequest(req, res, svc);
       }
@@ -70,7 +74,7 @@ export function requestHandler(ctx: Ctx, routes: readonly Route[]) {
       if (session?.guestId) {
         const active = ctx.guests.session(session.guestId);
         if (!active) session = undefined;
-        else session.guest = active.info;
+        else session.guest = { ...active.info, muted: !!active.muted };
       }
       if (!session) {
         if (p.startsWith('/api/')) return send(res, 401, { error: 'Not logged in' });
@@ -78,7 +82,12 @@ export function requestHandler(ctx: Ctx, routes: readonly Route[]) {
         res.writeHead(302, { location: p === '/lite' ? '/login?next=/lite' : '/login' }).end();
         return;
       }
-      for (const route of signedIn) if (route.auth === 'session' && (!session.guestId || route.guest) && matches(route, req.method, p)) return await route.handle(ctx, { ...r, session });
+      for (const route of signedIn) {
+        if (route.auth !== 'session' || !matches(route, req.method, p)) continue;
+        if (session.guestId && !route.guest) return send(res, 403, { error: 'Guests cannot access this endpoint' });
+        if (cfg.lobbyOnly && !route.lobbyOnly) return send(res, 403, { error: 'Project tools are disabled in lobby-only mode' });
+        return await route.handle(ctx, { ...r, session });
+      }
     } catch (err) {
       console.error(err);
       if (!res.headersSent) send(res, 500, { error: 'Internal error' });

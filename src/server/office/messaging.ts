@@ -52,6 +52,7 @@ export function messaging(ctx: Ctx): Messaging {
       return peer && visiblePeer(c, peer) ? input : undefined;
     }
     if (msg.t === 'chat') return typeof msg.floor === 'string' && msg.floor === c.peer.floor && canGuestViewFloor(c, msg.floor) ? input : undefined;
+    if (msg.t === 'me') return msg.me?.role === 'guest' ? input : undefined;
     if (msg.t === 'rtc') {
       const sender = peerFor(msg.from);
       return sender && visiblePeer(c, sender) && !isGuestMuted(c) && !isGuestMuted(ctx.clients.get(msg.from)!) ? input : undefined;

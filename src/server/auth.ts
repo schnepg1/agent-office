@@ -153,6 +153,14 @@ export class Auth {
     return false;
   }
 
+  /** Whether any office cookie on this host is a guest session; used to deny service-tunnel access explicitly. */
+  fromAnyGuestCookie(req: IncomingMessage): boolean {
+    for (const [name, value] of Object.entries(parseCookies(req.headers.cookie))) {
+      if (OFFICE_COOKIE.test(name) && this.verify(value)?.guestId) return true;
+    }
+    return false;
+  }
+
   cookie(req: IncomingMessage, token: string, secure: boolean): string {
     return `${cookieName(req)}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}${secure ? '; Secure' : ''}`;
   }

@@ -39,7 +39,7 @@ export function onConnection(ctx: Ctx, ws: WebSocket, url: URL, session: Session
   const name = account?.name ?? guest?.info.name ?? (str(url.searchParams.get('name'), 24).trim() || `Guest ${id.slice(0, 3)}`);
   const colorParam = url.searchParams.get('color') ?? '';
   const intParam = (k: string) => (url.searchParams.get(k) ? Number(url.searchParams.get(k)) : undefined);
-  const me = meOf(account?.id, guest?.info);
+  const me = meOf(account?.id, guest ? { ...guest.info, muted: !!guest.muted } : undefined);
   const client = newClient(id, ws, { accountId: account?.id, admin: me.admin, ...(guest ? { guestId: guest.id, guestName: guest.info.name, guestFloorIds: guest.info.floorIds } : {}) }, {
     id,
     name,
@@ -65,6 +65,7 @@ export function onConnection(ctx: Ctx, ws: WebSocket, url: URL, session: Session
       for (const target of clients.values()) if (target.guestId === guest.id) {
         target.guestMuted = muted;
         if (muted) { target.peer.voice = false; target.peer.muted = true; target.peer.sharing = false; }
+        ctx.sendTo(target, { t: 'me', me: meOf(undefined, { ...guest.info, muted }) });
       }
     };
     client.revokeGuestSession = () => {
