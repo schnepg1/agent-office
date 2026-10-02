@@ -3,6 +3,7 @@ import { cloneLabel, floorPalette } from '../../shared/floors';
 import { ROOF, ROOF_NAME } from '../../shared/rooftop';
 import type { FloorInfo } from '../../shared/protocol';
 import { store } from '../state';
+import { GUEST_LOBBY, isGuest } from '../shared/guest';
 import { h } from './dom';
 
 // The floor list that drops down from the project in the corner: every floor of the building, top
@@ -66,6 +67,9 @@ export function toggleFloorMenu(anchor: HTMLElement, opts: FloorMenuOptions): vo
   const render = () => {
     const floors = store.floors;
     const here = floors.findIndex((f) => f.id === store.floor);
+    const guest = isGuest();
+    const lobby = h('button.floor-item', { type: 'button', role: 'menuitem', class: store.floor === GUEST_LOBBY ? 'here' : '', disabled: store.floor === GUEST_LOBBY, title: store.floor === GUEST_LOBBY ? 'You are in the lobby' : 'Return to the guest lobby' }, h('span.floor-no', {}, '⌂'), h('span.floor-text', {}, h('span.floor-name', {}, 'Lobby'), h('span.floor-sub', {}, store.floor === GUEST_LOBBY ? 'you are here' : 'Guest lounge')));
+    lobby.addEventListener('click', () => { if (store.floor !== GUEST_LOBBY) { close(); opts.go(GUEST_LOBBY); } });
     const add = h('button.floor-item.add', { type: 'button', role: 'menuitem', title: 'The elevator: add another project as a floor' }, h('span.floor-no', {}, '🛗'), h('span.floor-text', {}, h('span.floor-name', {}, 'Elevator'), h('span.floor-sub', {}, 'Add a project…')));
     add.addEventListener('click', () => {
       close();
@@ -87,7 +91,7 @@ export function toggleFloorMenu(anchor: HTMLElement, opts: FloorMenuOptions): vo
       close();
       opts.roof?.();
     });
-    el.replaceChildren(h('div.floor-menu-head', {}, `🏢 ${floors.length} floor${floors.length === 1 ? '' : 's'}`), ...(floors.length && opts.roof ? [roof] : []), ...items, add);
+    el.replaceChildren(h('div.floor-menu-head', {}, guest ? 'Guest visit' : `🏢 ${floors.length} floor${floors.length === 1 ? '' : 's'}`), ...(guest ? [lobby] : []), ...(!guest && floors.length && opts.roof ? [roof] : []), ...items, add);
   };
 
   const place = () => {

@@ -24,6 +24,7 @@ import { routeWhiteboardMessage } from '../features/whiteboard/ui';
 import type { Ctx } from './context';
 import type { CoreState } from './ctx';
 import { builtFloors, pastTheWing } from './floors';
+import { GUEST_LOBBY, isGuest } from '../shared/guest';
 import type { Parts } from './parts';
 
 export type ArrivalParts = Pick<Parts, 'worlds' | 'place' | 'travel' | 'maps' | 'views' | 'cards' | 'hoops' | 'bar' | 'golf' | 'bargames' | 'cars' | 'focus'>;
@@ -187,10 +188,10 @@ export function installArrival(ctx: Ctx, core: CoreState, parts: ArrivalParts) {
     }
     if (!p) {
       $('project-name').textContent = '🏢 Agent Office';
-      $('project-meta').textContent = store.floors.length ? '🛗 Take the elevator to a floor' : '🛗 No floors yet — add a project in the elevator';
+      $('project-meta').textContent = store.floor === GUEST_LOBBY || isGuest() ? '🛗 Guest lobby · choose a floor to visit' : store.floors.length ? '🛗 Take the elevator to a floor' : '🛗 No floors yet — add a project in the elevator';
       // Where to go next, so it shows even with the floor details turned off.
       $('project-meta').classList.add('lobby');
-      ctx.world().setProjectName(store.floors.length ? 'Pick a floor' : 'Lobby');
+      ctx.world().setProjectName(store.floor === GUEST_LOBBY || isGuest() ? 'Guest lobby' : store.floors.length ? 'Pick a floor' : 'Lobby');
       return;
     }
     const n = store.floors.findIndex((f) => f.id === store.floor);

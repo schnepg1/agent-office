@@ -16,6 +16,7 @@ import { aside, hintTitle, key, onE } from './hint';
 import type { Parts } from './parts';
 import { FAR } from './scene';
 import { streetOf } from './worlds';
+import { isGuest } from '../shared/guest';
 
 // The kinds of thing you can use that this defines (see InteractKinds in world/types.ts).
 declare module '../world/types' {
@@ -116,6 +117,10 @@ export function installTravel(ctx: Ctx, core: CoreState, parts: TravelParts) {
    * bottom floor's.
    */
   function ride(to: string, keepWalking = false): void {
+    if (isGuest() && (to === ROOF || to === GARAGE)) {
+      toast('Guest visits are limited to the lobby and the floors your host chose', 'warn');
+      return;
+    }
     // A map of its own has no elevator: straight there, and no roof or garage to go to.
     if (!inOffice()) {
       if (to === ROOF || to === GARAGE) {
@@ -192,6 +197,7 @@ export function installTravel(ctx: Ctx, core: CoreState, parts: TravelParts) {
 
   /** Straight to another floor from the floor list: a blink, and you're standing in the same spot there. */
   function switchFloor(floorId: string, keepWalking = false): void {
+    if (isGuest() && floorId === ROOF) return;
     // The roof isn't laid out like a floor: to and from it, it's the elevator (and on a map with no
     // roof, straight down off it).
     if (core.upTop && !inOffice()) return leaveRoofFor(floorId);

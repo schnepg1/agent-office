@@ -39,6 +39,7 @@ curl -fsSL https://raw.githubusercontent.com/AgentSystemLabs/agent-office/main/i
 - **GitHub on the walls.** Issues and pull requests hang on cork boards. Hand an issue to a worker, queue tasks, give a worker its own git worktree and open its PR with one key (if one gets deleted behind the office's back, the worker waits at its desk until you rebuild it). One task can span several projects: the worker gets a worktree of each, and a PR in each that links the others.
 - **Agents that manage agents.** Every worker can list, hire, message and send home the others, through an `agent-office` MCP server (Claude Code, Codex, OpenCode) or the `office-workers` command. Ask one to "send everyone whose PR merged home" and it does, deleting their worktrees and branches unless they hold unpushed work.
 - **Together.** Voice, chat, screen sharing on the lounge TV and a shared whiteboard.
+- **Guest coworking.** Admins can invite guests into a quiet lobby and choose the project floors they may view. Guests cannot run or control workers. See [Coworking with guests](docs/coworking.md) for permissions and hosting advice.
 
 - **Other maps.** Turn the whole building into a castle: sit on a throne of iron blades while your workers line up before you when they're done, send new ones off through the Hand of the King, and watch their beards grow long and grey as they toil. Send one home and the Kingsguard runs up from the dungeon, marches it down the stairs and throws it in a cell, where it starves, dies and rots down to a skeleton. Or make a map of your own, with its own way of seeing workers off in JSON ([docs/maps.md](docs/maps.md)).
 
@@ -89,7 +90,7 @@ agent-office --no-open                      # print the sign-in link instead of 
 agent-office setup                          # the first-start walkthrough again (office stopped)
 ```
 
-Every option is in [docs/configuration.md](docs/configuration.md). Choosing models and providers per worker is in [docs/agents.md](docs/agents.md).
+Every option, including `--lobby-only`, is in [docs/configuration.md](docs/configuration.md). Choosing models and providers per worker is in [docs/agents.md](docs/agents.md).
 
 To run it from a clone instead:
 

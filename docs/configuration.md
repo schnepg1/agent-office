@@ -27,6 +27,7 @@ agent-office [dir] [options]
       --tls-key <file>    …and key
       --self-signed       Serve HTTPS with a generated self-signed cert
       --trust-proxy       Trust X-Forwarded-* (behind Caddy/nginx)
+      --lobby-only        Host a social lobby without project floors or agent workers (env AGENT_OFFICE_LOBBY_ONLY=1)
       --turn <url>        Add a TURN server for voice, e.g. turn:user:pass@host:3478
       --budget <usd>      Daily tracked Claude Code budget (OpenCode/Codex/Grok/Muse/DSH excluded)
       --budget-pause      ...and nobody can hire a new worker until the next day
@@ -53,3 +54,7 @@ agent-office accounts [list | invite [name] [--admin] | revoke <name> | role <na
   Invite, list and revoke people's own accounts, and switch the shared password
   off or on. Works while the office runs.
 ```
+
+## Lobby-only mode
+
+`agent-office --lobby-only` (or `AGENT_OFFICE_LOBBY_ONLY=1`) starts a lightweight social lobby without discovering or opening project floors, so the host does not run project workers or execution tools. Guests join with scoped invitations; on a normal office, an admin chooses the exact floor IDs a guest may view. Keep a lobby on localhost or a private network, and use HTTPS or Tailscale for remote access. See [Coworking with guests](coworking.md) for a dedicated VPS and reverse-proxy setup.

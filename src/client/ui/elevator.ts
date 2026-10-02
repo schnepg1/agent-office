@@ -6,6 +6,7 @@ import type { Net } from '../net';
 import { store } from '../state';
 import { h, openModal, timeAgo, toast, type Modal } from './dom';
 import { confirmDialog } from './prompt';
+import { GUEST_LOBBY, isGuest } from '../shared/guest';
 
 // The elevator's panel: a button for every floor (every project), and "add a project", which clones
 // one of the repositories the office's gh login can see and makes it a new floor. The first time
@@ -70,7 +71,7 @@ export function openElevator(opts: ElevatorOptions): void {
   let seen = false;
   let startTimer: number | undefined;
   let error = '';
-  let showAdd = setup || !store.floors.length;
+  let showAdd = !isGuest() && (setup || !store.floors.length);
   /** The search box and list are in place (rebuilding them would lose the focus mid-typing). */
   let built = false;
 
@@ -217,11 +218,16 @@ export function openElevator(opts: ElevatorOptions): void {
   const renderFloors = () => {
     const floors = store.floors;
     const built = floors.some((f) => !f.cloning);
+    const guest = isGuest();
+    const lobbyHere = store.floor === GUEST_LOBBY;
+    const lobby = guest ? h('button.floor-btn', { type: 'button', class: lobbyHere ? 'here' : '', disabled: lobbyHere, title: lobbyHere ? 'You are in the lobby' : 'Return to the guest lobby' }, h('span.floor-no', {}, '⌂'), h('span.floor-text', {}, h('span.floor-name', {}, 'Guest lobby', lobbyHere ? h('span.here-tag', {}, 'you are here') : null), h('span.floor-sub', {}, 'A quiet place to talk'))) : null;
+    lobby?.addEventListener('click', () => { modal.close(); opts.ride(GUEST_LOBBY); });
     // Top floor first, the way an elevator's buttons stack, with the roof over them, floor 1 and then the garage at the bottom.
     floorsEl.replaceChildren(
-      ...(built ? [roofButton()] : []),
+      ...(!guest && built ? [roofButton()] : []),
+      ...(lobby ? [lobby] : []),
       ...(floors.length ? floors.map(floorRow).reverse() : [h('p.empty', {}, 'No floors yet.')]),
-      ...(built ? [garageButton()] : []),
+      ...(!guest && built ? [garageButton()] : []),
     );
   };
 
@@ -255,6 +261,11 @@ export function openElevator(opts: ElevatorOptions): void {
   };
 
   const renderAdd = () => {
+    if (isGuest()) {
+      addEl.replaceChildren();
+      addBtn.classList.add('hidden');
+      return;
+    }
     if (!showAdd) {
       const open = h('button.btn', { type: 'button' }, '➕ Add a project');
       open.addEventListener('click', () => {

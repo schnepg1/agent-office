@@ -1,0 +1,14 @@
+.guest-invites-modal { width: min(720px, 100%); }
+.guest-invites .guest-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.guest-invites .guest-form > label { display: grid; gap: 5px; }
+.guest-invites .guest-form input, .guest-invites .guest-form select { width: 100%; min-width: 0; border: 2px solid var(--ink); border-radius: 9px; padding: 7px 9px; font: inherit; color: var(--ink); background: var(--paper); }
+.guest-invites .guest-form fieldset { grid-column: 1 / -1; border: 2px dashed var(--ink); border-radius: 10px; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; }
+.guest-invites .guest-form legend { padding: 0 5px; font-size: 13px; font-weight: 900; }
+.guest-invites .guest-floor { display: flex; align-items: center; gap: 5px; border: 1px solid var(--ink); border-radius: 99px; padding: 3px 8px; }
+.guest-invites .guest-floor input { width: auto; margin: 0; }
+.guest-invites .guest-form > button, .guest-invites .guest-status, .guest-invites .guest-fresh { grid-column: 1 / -1; }
+.guest-invites .guest-status { margin: 8px 0; color: var(--muted); font-size: 13px; }
+.guest-invites .cmd { display: flex; align-items: center; gap: 8px; }
+.guest-invites .cmd pre { overflow-wrap: anywhere; white-space: pre-wrap; }
+.guest-invites .team-list li { flex-wrap: wrap; }
+@media (max-width: 560px) { .guest-invites .guest-form { grid-template-columns: 1fr; } .guest-invites .guest-form fieldset, .guest-invites .guest-form > button, .guest-invites .guest-status, .guest-invites .guest-fresh { grid-column: auto; } }

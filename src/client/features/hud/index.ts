@@ -16,6 +16,7 @@ import { openCharacter } from '../../ui/character';
 import { $ } from '../../ui/dom';
 import { toggleFloorMenu } from '../../ui/floormenu';
 import { openHelp } from '../../ui/hud';
+import { openGuestInvites } from '../../ui/guest-invites';
 import { mountHud } from '../../ui/menu';
 import { openServices } from '../../ui/services';
 import { openSettings, type SettingsPane } from '../../ui/settings';
@@ -24,6 +25,7 @@ import { openTeam } from '../../ui/team';
 import { openUpgrade } from '../../ui/upgrade';
 import { openWhiteboard } from '../whiteboard/ui';
 import { describeSky } from '../../world/sky';
+import { isGuest } from '../../shared/guest';
 
 export type HudParts = Pick<Parts, 'worlds' | 'place' | 'travel' | 'you' | 'actions' | 'waiting' | 'meeting' | 'bookshelf' | 'hanging' | 'talk' | 'notifier'>;
 
@@ -69,7 +71,7 @@ export function installHud(ctx: Ctx, core: CoreState, parts: HudParts) {
       // The office has its bookshelf for them; a map of its own may not.
       { id: 'docs', icon: '📚', label: 'Docs', section: 'Open', shown: () => !inOffice(), title: () => 'Read the project’s docs', run: parts.bookshelf.showBookshelf },
       { id: 'elevator', icon: '🛗', label: () => (inOffice() ? 'Elevator' : 'Floors'), section: 'Open', count: () => store.floors.reduce((n, f) => n + (f.id === store.floor ? 0 : f.waiting), 0), title: () => (inOffice() ? 'Ride to another project' : 'Go to another project, or add one'), run: travel.showElevator },
-      { id: 'roof', icon: '🍸', label: 'Rooftop bar', section: 'Open', shown: () => !core.upTop && inOffice() && builtFloors().length > 0, title: () => 'Ride the elevator up to the roof: a DJ, drinks and the city', run: () => travel.ride(ROOF) },
+      { id: 'roof', icon: '🍸', label: 'Rooftop bar', section: 'Open', shown: () => !isGuest() && !core.upTop && inOffice() && builtFloors().length > 0, title: () => 'Ride the elevator up to the roof: a DJ, drinks and the city', run: () => travel.ride(ROOF) },
       // In voice, V is push to talk, so leaving is only from here.
       { id: 'voice', icon: '🎙️', label: () => (voice.inVoice ? 'Leave voice' : 'Join voice'), section: 'Together', key: () => (voice.inVoice ? undefined : 'V'), on: () => voice.inVoice, blocked: noMedia, run: () => void talk.toggleVoice() },
       // While you're in voice, the top bar keeps the mute button handy. Muted is the usual with push to talk, so it doesn't stand out then.
@@ -90,6 +92,7 @@ export function installHud(ctx: Ctx, core: CoreState, parts: HudParts) {
       { id: 'decor', icon: '🖼️', label: () => (hanging.hanger.active ? 'Stop hanging the picture' : 'Hang a picture'), section: 'Together', key: 'F', shown: () => inOffice(), on: () => hanging.hanger.active, status: () => hanging.hanger.active, run: () => (hanging.hanger.active ? hanging.hanger.cancel() : hanging.startHanging()) },
       { id: 'team', icon: '👥', label: 'Invite teammates', section: 'Together', shown: () => store.invites, run: () => openTeam(net) },
       { id: 'accounts', icon: '🔑', label: 'Accounts', section: 'Together', shown: () => store.me.admin, title: () => 'Invite people, see who has an account, revoke them', run: () => openAccounts(net) },
+      { id: 'guest-invites', icon: '🔗', label: 'Guest invitations', section: 'Together', shown: () => store.me.admin, title: () => 'Invite guests to view selected floors', run: openGuestInvites },
       { id: 'signins', icon: '🔐', label: 'Your sign-ins', section: 'Together', shown: () => !!store.me.account, tone: () => (needsSigningIn() ? 'danger' : undefined), status: needsSigningIn, chip: () => 'Sign in to Claude', title: () => 'The Claude plan and GitHub account your workers run on: your own', run: () => openSignIns(net) },
       { id: 'settings', icon: '⚙️', label: 'Settings', section: 'Office', run: showSettings },
       { id: 'help', icon: '❓', label: 'Controls', section: 'Office', key: 'H', run: openHelp },
