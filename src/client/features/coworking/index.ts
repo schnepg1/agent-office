@@ -79,6 +79,11 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
     zoneBadge.setAttribute('aria-label', `${zone === 'quiet' ? 'Quiet desk zone' : 'Talk café zone'}; press Y to open coworking`);
   }
 
+  function guestIsHostMuted(): boolean {
+    const me = store.me as typeof store.me & { role?: string; guest?: { muted?: boolean } };
+    return me.role === 'guest' && me.guest?.muted === true;
+  }
+
   function show() {
     if (!lobby()) return;
     if (modal) return;
@@ -133,8 +138,21 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
   }
 
   ctx.keys.bind({ code: 'KeyY', when: lobby, repeat: false, run: () => { show(); } });
-  ctx.messages.on('welcome', () => { if (lobby()) ctx.net.send({ t: 'cowork.sync' }); });
-  ctx.messages.on('floor.enter', (m) => { if (m.floor === LOBBY) ctx.net.send({ t: 'cowork.sync' }); });
+  ctx.messages.on('welcome', () => {
+    hostForcedMute = guestIsHostMuted();
+    if (hostForcedMute) ctx.voice.setMuted(true);
+    updateZoneBadge();
+    if (lobby()) ctx.net.send({ t: 'cowork.sync' });
+  });
+  ctx.messages.on('floor.enter', (m) => {
+    updateZoneBadge();
+    if (m.floor === LOBBY) ctx.net.send({ t: 'cowork.sync' });
+  });
+  ctx.messages.on('me', (m) => {
+    const me = m.me as typeof m.me & { role?: string; guest?: { muted?: boolean } };
+    hostForcedMute = me.role === 'guest' && me.guest?.muted === true;
+    if (hostForcedMute) ctx.voice.setMuted(true);
+  });
   ctx.messages.on('cowork.state', () => { refreshList(); syncQuietMute(); });
   ctx.messages.on('cowork.update', () => { refreshList(); syncQuietMute(); });
   ctx.messages.on('cowork.remove', refreshList);
@@ -167,9 +185,9 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
   });
 
   ctx.ticks.add('others', () => {
+    updateZoneBadge();
     if (!lobby()) return;
     syncQuietMute();
-    updateZoneBadge();
     const listenerZone = coworkZoneAt(ctx.player.pos.x);
     for (const peer of store.peers.values()) {
       if (peer.id === store.you || peer.floor !== LOBBY || peer.lite) continue;

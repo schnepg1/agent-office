@@ -112,18 +112,23 @@ export const coworkHandlers = {
       return;
     }
     if (!throttle(c, 'cowork-moderate', 300)) return;
+    const guestPeers = [...ctx.clients.values()].filter((peer) => peer.guestId === target.guestId);
     if (msg.action === 'kick') {
-      ctx.sendTo(target, { t: 'toast', text: 'The host removed you from the lobby.', level: 'warn' });
-      revokeGuestSession(target);
+      for (const peer of guestPeers) {
+        ctx.sendTo(peer, { t: 'toast', text: 'The host removed you from the lobby.', level: 'warn' });
+        revokeGuestSession(peer);
+      }
       return;
     }
     if (msg.action !== 'mute' && msg.action !== 'unmute') return;
     const muted = msg.action === 'mute';
-    setGuestMuted(target, muted);
-    target.peer.muted = muted;
-    ctx.toNeighbors(target, { t: 'peer.update', peer: target.peer });
-    ctx.sendTo(target, { t: 'peer.update', peer: target.peer });
-    ctx.sendTo(target, { t: 'cowork.forceMute', muted });
-    broadcast(ctx, { t: 'cowork.update', participant: getParticipant(ctx, target) });
+    for (const peer of guestPeers) {
+      setGuestMuted(peer, muted);
+      peer.peer.muted = muted;
+      ctx.toNeighbors(peer, { t: 'peer.update', peer: peer.peer });
+      ctx.sendTo(peer, { t: 'peer.update', peer: peer.peer });
+      ctx.sendTo(peer, { t: 'cowork.forceMute', muted });
+      if (inLobby(peer)) broadcast(ctx, { t: 'cowork.update', participant: getParticipant(ctx, peer) });
+    }
   },
 } satisfies HandlerMap<CoworkClientMsg>;

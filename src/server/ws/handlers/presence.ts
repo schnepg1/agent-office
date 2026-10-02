@@ -142,6 +142,17 @@ export const presenceHandlers = {
     c.peer.muted = isGuestMuted(c) || !!msg.muted;
     c.peer.sharing = isGuestClient(c) ? false : !!msg.sharing;
     ctx.broadcast({ t: 'peer.update', peer: c.peer });
+    if (c.peer.floor === LOBBY) {
+      const lobby = coworkLobbyFor(ctx);
+      const participant = lobby.upsert(c.id, c.peer.name);
+      participant.muted = c.peer.muted;
+      participant.guest = isGuestClient(c);
+      participant.zone = coworkZoneAt(c.peer.x);
+      participant.seat = c.peer.seat;
+      const update = { t: 'cowork.update' as const, participant };
+      ctx.toNeighbors(c, update);
+      ctx.sendTo(c, update);
+    }
   },
   rtc(ctx, c, msg) {
     const target = ctx.clients.get(str(msg.to, 32));
