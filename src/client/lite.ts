@@ -29,6 +29,7 @@ import { askNotifyPermission, DesktopNotifier, notifyPermission, waitingOnSomeon
 import { repoChoices } from './shared/hiring';
 // The tab title counts the workers waiting on someone, on every floor, as the 3D office's does.
 import { renderTitle } from './shared/title';
+import { canUseProjectTools } from './shared/guest';
 
 // Sent here because this browser can't draw the 3D office (see noWebGL in core/scene.ts).
 if (new URLSearchParams(location.search).get('why') === 'webgl') {
@@ -50,6 +51,10 @@ let bootVersion = '';
 net.onStatus((up) => $('conn').classList.toggle('hidden', up));
 net.onMessage((msg) => {
   store.apply(msg);
+  if (msg.t === 'welcome' && !canUseProjectTools()) {
+    location.replace('/');
+    return;
+  }
   routeTerminalMessage(msg);
   routeChangesMessage(msg);
   routePullMessage(msg);

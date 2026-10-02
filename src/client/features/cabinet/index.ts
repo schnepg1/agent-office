@@ -4,6 +4,7 @@ import { aside, hintTitle, key, onE } from '../../core/hint';
 import { store } from '../../state';
 import { Cabinet } from './ui';
 import { clip } from '../../ui/dom';
+import { canUseProjectTools } from '../../shared/guest';
 
 // The kinds of thing you can use that this defines (see InteractKinds in world/types.ts).
 declare module '../../world/types' {
@@ -20,7 +21,7 @@ export interface CabinetDeps {
 /** The arcade cabinet by the jukebox: BLOCKFALL up close, and on its screen for everyone else on the floor. */
 export function installCabinet(ctx: Ctx, deps: CabinetDeps): Cabinet {
   // The arcade cabinet next to it: BLOCKFALL up close, and on its screen for everyone else on the floor.
-  const cabinet = new Cabinet(ctx.office.cabinet.screen, ctx.net, { openTerminal: (id) => deps.openTerminal(id), sound: (kind, lines) => ctx.sound.arcade(kind, lines) });
+  const cabinet = new Cabinet(ctx.office.cabinet.screen, ctx.net, { openTerminal: (id) => deps.openTerminal(id), canOpenTerminal: canUseProjectTools, sound: (kind, lines) => ctx.sound.arcade(kind, lines) });
   ctx.ticks.add('play', ({ dt }) => cabinet.update(ctx.camera, dt));
   ctx.interactions.define('cabinet', {
     reach: 4,

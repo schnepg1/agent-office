@@ -71,7 +71,7 @@ export class Cabinet {
   constructor(
     screen: THREE.Mesh,
     private readonly net: Net,
-    private readonly opts: { openTerminal(workerId: string): void; sound(kind: CabinetSound, lines?: number): void },
+    private readonly opts: { openTerminal(workerId: string): void; canOpenTerminal?(): boolean; sound(kind: CabinetSound, lines?: number): void },
   ) {
     this.view = new ScreenZoom(screen);
     this.picture.width = 512;
@@ -338,14 +338,14 @@ export class Cabinet {
     const w = this.waiting;
     el.classList.toggle('hidden', !w);
     if (!w) return el.replaceChildren();
-    const go = h('button.btn.primary', { type: 'button' }, '💬 Open its terminal');
+    const go = this.opts.canOpenTerminal?.() === false ? null : h('button.btn.primary', { type: 'button' }, '💬 Open its terminal');
     const back = h('button.btn', { type: 'button' }, '▶ Carry on');
-    go.addEventListener('click', () => {
+    go?.addEventListener('click', () => {
       this.modal?.close();
       this.opts.openTerminal(w.id);
     });
     back.addEventListener('click', () => this.resume());
-    el.replaceChildren(h('span', {}, `🙋 ${w.name} needs input${deskOf(w)}`), go, back);
+    el.replaceChildren(h('span', {}, `🙋 ${w.name} needs input${deskOf(w)}`), ...(go ? [go] : []), back);
   }
 
   /** Nobody's game on the screen, just the high scores. */

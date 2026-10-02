@@ -9,6 +9,7 @@ import { DOG_NAME_MAX, cleanDogName } from '../../shared/dog';
 import { h, openModal, timeAgo } from './dom';
 import { agentFields, choiceLabel, officeChoice } from './provider';
 import { openPromptEditor, rewrittenPrompts } from './prompts';
+import { canUseProjectTools, isGuest } from '../shared/guest';
 
 const VIEWS: [ViewMode, string, string][] = [
   ['first', '👀 First person', 'See through your own eyes. Click the office to look around with the mouse and click things to use them. Esc frees the mouse.'],
@@ -205,7 +206,7 @@ export function openSettings(net: Net, settings: Settings, onChange: (s: Setting
 
   // The building's map, for everyone: the office, the castle, or one of your own. Opening Settings
   // has the office read its folder of maps again, so one you just added or fixed shows up.
-  net.send({ t: 'map.set' });
+  if (canUseProjectTools()) net.send({ t: 'map.set' });
   const mapRow = h('div.seg', { role: 'radiogroup', 'aria-label': 'Map' });
   const mapNote = h('p.setting-note');
   const mapBad = h('p.setting-note.bad', { style: 'white-space: pre-line' });
@@ -508,11 +509,11 @@ export function openSettings(net: Net, settings: Settings, onChange: (s: Setting
     you: [
       setting('Your character', null, character),
       setting('Camera view', 'you', seg, note),
-      setting('Signed in', null, h('div.volume', {}, signOut), h('p.setting-note', {}, account ? `As ${account.name}, with your own account (${account.role}).` : 'With the shared office password.')),
+      setting('Signed in', null, h('div.volume', {}, signOut), h('p.setting-note', {}, isGuest() ? 'You are visiting as a guest.' : account ? `As ${account.name}, with your own account (${account.role}).` : 'With the shared office password.')),
     ],
     sound: [
       setting('Office sounds', 'you', soundRow, h('p.setting-note', {}, 'Workers typing, footsteps, the coffee machine, birds and rain outside, the dog, and the ding when a worker is done. Voice chat isn’t affected.')),
-      setting('Page turns at the bookshelf', 'you', pagesRow, h('p.setting-note', {}, 'A soft swish each time the book in your hands turns a page, as you open a doc or scroll through one. The 🔈 at the top of the bookshelf turns it off too.')),
+      ...(canUseProjectTools() ? [setting('Page turns at the bookshelf', 'you', pagesRow, h('p.setting-note', {}, 'A soft swish each time the book in your hands turns a page, as you open a doc or scroll through one. The 🔈 at the top of the bookshelf turns it off too.'))] : []),
       setting('Jukebox', 'you', musicRow, h('p.setting-note', {}, 'The jukebox in the lounge. Everyone on the floor hears the same song, louder the closer they are to it; this is how loud it is for you alone.')),
       setting('Voice chat', 'you', talkRow, h('p.setting-note', {}, 'Either way, V joins voice, holding V talks and you’re muted once you let go, and M mutes or unmutes. With push to talk you join muted. Leave voice from the ☰ menu.')),
     ],
@@ -548,13 +549,15 @@ export function openSettings(net: Net, settings: Settings, onChange: (s: Setting
   const nav = h('nav.settings-nav', { role: 'tablist', 'aria-orientation': 'vertical', 'aria-label': 'Settings' });
   const tabs = new Map<SettingsPane, HTMLButtonElement>();
   const bodies = new Map<SettingsPane, HTMLElement>();
-  for (const p of PANES) {
+  const visiblePanes = canUseProjectTools() ? PANES : PANES.filter((p) => p.id === 'you' || p.id === 'sound');
+  for (const p of visiblePanes) {
     const tab = h('button.settings-tab', { type: 'button', role: 'tab', onclick: () => show(p.id) }, h('span.icon', { 'aria-hidden': 'true' }, p.icon), h('span', {}, p.label)) as HTMLButtonElement;
     tabs.set(p.id, tab);
     nav.append(tab);
     bodies.set(p.id, h('section.settings-pane', { role: 'tabpanel', 'aria-label': p.label }, h('div.settings-head', {}, h('h3', {}, `${p.icon} ${p.label}`), h('p', {}, p.blurb)), ...panes[p.id]));
   }
   const show = (id: SettingsPane) => {
+    if (!tabs.has(id)) id = visiblePanes[0].id;
     lastPane = id;
     for (const [t, tab] of tabs) {
       tab.classList.toggle('on', t === id);
@@ -570,8 +573,8 @@ export function openSettings(net: Net, settings: Settings, onChange: (s: Setting
     const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
     if (!step) return;
     e.preventDefault();
-    const i = PANES.findIndex((p) => p.id === lastPane);
-    const next = PANES[(i + step + PANES.length) % PANES.length].id;
+    const i = visiblePanes.findIndex((p) => p.id === lastPane);
+    const next = visiblePanes[(i + step + visiblePanes.length) % visiblePanes.length].id;
     show(next);
     tabs.get(next)!.focus();
   });

@@ -3,6 +3,7 @@ import type { FloorInfo } from '../../shared/protocol';
 import { store } from '../state';
 import { h, openModal, toast } from './dom';
 import { copyButton } from './team';
+import { GUEST_LOBBY } from '../shared/guest';
 
 interface Invitation {
   id: string;
@@ -19,19 +20,19 @@ const dateLabel = (at?: number) => (at ? new Date(at).toLocaleString() : 'Never 
 /** Admin-only, short-lived viewing links for guests. Link tokens are only shown on creation. */
 export function openGuestInvites() {
   const body = h('div.body.guest-invites');
-  const floors = store.floors.filter((floor) => !floor.cloning);
+  const floors = store.floors.filter((floor) => floor.id !== GUEST_LOBBY && !floor.cloning);
   const checked = new Set<string>();
   const checkboxes = floors.map((floor) => {
     const input = h('input', { type: 'checkbox', value: floor.id, 'aria-label': floor.name }) as HTMLInputElement;
     input.addEventListener('change', () => input.checked ? checked.add(floor.id) : checked.delete(floor.id));
     return h('label.guest-floor', {}, input, h('span', {}, floor.name));
   });
-  const nameInput = h('input', { type: 'text', maxlength: 24, placeholder: 'Name (optional)', 'aria-label': 'Guest name', autocomplete: 'off', spellcheck: 'false' }) as HTMLInputElement;
+  const nameInput = h('input', { type: 'text', maxlength: 24, placeholder: 'Invitation label (optional)', 'aria-label': 'Invitation label', autocomplete: 'off', spellcheck: 'false' }) as HTMLInputElement;
   const useSelect = h('select', { 'aria-label': 'How many times the link can be used' }, h('option', { value: '1' }, 'One visit'), h('option', { value: '' }, 'Reusable link')) as HTMLSelectElement;
   const expiry = h('select', { 'aria-label': 'Invitation expiry' }, h('option', { value: '86400000' }, 'Expires in 1 day'), h('option', { value: '604800000', selected: true }, 'Expires in 7 days'), h('option', { value: '2592000000' }, 'Expires in 30 days')) as HTMLSelectElement;
   const submit = h('button.btn.primary', { type: 'submit' }, 'Create guest link');
   const form = h('form.guest-form', {},
-    h('label', {}, 'Guest name', nameInput),
+    h('label', {}, 'Invitation label (optional)', nameInput),
     h('label', {}, 'Link use', useSelect),
     h('label', {}, 'Expiry', expiry),
     h('fieldset', {}, h('legend', {}, 'Project floors they can view (optional)'), ...checkboxes),

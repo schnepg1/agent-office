@@ -21,6 +21,7 @@ import { openTeam } from '../../ui/team';
 import { IS_MAC } from '../../ui/termkeys';
 import { openWhiteboard } from '../whiteboard/ui';
 import type { InteractKind, Interactable } from '../../world/types';
+import { canUseProjectTools } from '../../shared/guest';
 
 export type PaletteParts = Pick<Parts, 'walking' | 'waiting' | 'actions' | 'hud' | 'hanging' | 'meeting' | 'telescope'>;
 
@@ -67,6 +68,14 @@ export function installPalette(ctx: Ctx, parts: PaletteParts) {
   function paletteEntries(): PaletteEntry[] {
     const { waiting, actions, meeting, hanging } = parts;
     const out: PaletteEntry[] = [];
+    if (!canUseProjectTools()) {
+      out.push({ icon: '⚙️', kind: 'Action', title: 'Settings', keywords: ['preferences', 'options'], open: () => parts.hud.showSettings() });
+      out.push(at('whiteboard', 'the whiteboard', { icon: '📝', kind: 'Board', title: 'Whiteboard', open: () => openWhiteboard(net) }));
+      for (const p of store.peers.values()) {
+        if (p.id !== store.you) out.push({ icon: '🙂', kind: 'Teammate', title: p.name, detail: store.onMyFloor(p) ? 'On this floor' : 'On another floor', open: () => parts.walking.walkTo(p.id) });
+      }
+      return out;
+    }
     for (const w of store.workers.values()) {
       const desk = DESK_BY_ID.get(w.deskId);
       const spot = desk && deskSpot(desk);

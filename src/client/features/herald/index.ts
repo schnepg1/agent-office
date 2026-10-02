@@ -11,6 +11,7 @@ import { store } from '../../state';
 import { h, toast } from '../../ui/dom';
 import { openPrompt } from '../../ui/prompt';
 import { hiringPaused } from '../../ui/usage';
+import { canUseProjectTools } from '../../shared/guest';
 
 // The kinds of thing you can use that this defines (see InteractKinds in world/types.ts).
 declare module '../../world/types' {
@@ -37,6 +38,7 @@ export function installHerald(ctx: Ctx, parts: Pick<Parts, 'place' | 'you' | 'ac
    * first free seat at the tables, and runs off there from beside him (see cameFrom).
    */
   function hireFromHerald() {
+    if (!canUseProjectTools()) return;
     const { actions, views } = parts;
     const h = plan().herald;
     if (!h || actions.officeIsFull()) return;
@@ -64,12 +66,13 @@ export function installHerald(ctx: Ctx, parts: Pick<Parts, 'place' | 'you' | 'ac
   ctx.interactions.define('herald', {
     reach: 5,
     hint: () => {
+      if (!canUseProjectTools()) return { k: '', parts: [] };
       const hd = plan().herald;
       const full = !parts.actions.firstFreeSeat();
       const m = store.machine;
       const why = full ? 'every seat is taken' : officeFull(m) ? `🚫 Office full · ${m.workers} of ${m.limit} workers` : hiringPaused() ? '💸 Budget spent — hiring resumes tomorrow' : '';
       return { k: `${hd?.name}|${why}`, parts: [hintTitle(`${plan().icon} ${hd?.name ?? 'Herald'}`), why ? h('span.cost', {}, why) : aside(hd?.says ?? ''), why ? '' : key('E', 'Send out a new worker')] };
     },
-    use: onE(() => hireFromHerald()),
+    use: onE(() => { if (canUseProjectTools()) hireFromHerald(); }),
   });
 }
