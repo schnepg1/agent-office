@@ -70,7 +70,6 @@ export function installPalette(ctx: Ctx, parts: PaletteParts) {
     const out: PaletteEntry[] = [];
     if (!canUseProjectTools()) {
       out.push({ icon: '⚙️', kind: 'Action', title: 'Settings', keywords: ['preferences', 'options'], open: () => parts.hud.showSettings() });
-      out.push(at('whiteboard', 'the whiteboard', { icon: '📝', kind: 'Board', title: 'Whiteboard', open: () => openWhiteboard(net) }));
       for (const p of store.peers.values()) {
         if (p.id !== store.you) out.push({ icon: '🙂', kind: 'Teammate', title: p.name, detail: store.onMyFloor(p) ? 'On this floor' : 'On another floor', open: () => parts.walking.walkTo(p.id) });
       }

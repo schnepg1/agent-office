@@ -6,7 +6,7 @@ import type { Net } from '../net';
 import { store } from '../state';
 import { h, openModal, timeAgo, toast, type Modal } from './dom';
 import { confirmDialog } from './prompt';
-import { GUEST_LOBBY, isGuest } from '../shared/guest';
+import { LOBBY, isGuest } from '../shared/guest';
 
 // The elevator's panel: a button for every floor (every project), and "add a project", which clones
 // one of the repositories the office's gh login can see and makes it a new floor. The first time
@@ -219,9 +219,9 @@ export function openElevator(opts: ElevatorOptions): void {
     const floors = store.floors;
     const built = floors.some((f) => !f.cloning);
     const guest = isGuest();
-    const lobbyHere = store.floor === GUEST_LOBBY;
+    const lobbyHere = store.floor === LOBBY;
     const lobby = guest ? h('button.floor-btn', { type: 'button', class: lobbyHere ? 'here' : '', disabled: lobbyHere, title: lobbyHere ? 'You are in the lobby' : 'Return to the guest lobby' }, h('span.floor-no', {}, '⌂'), h('span.floor-text', {}, h('span.floor-name', {}, 'Guest lobby', lobbyHere ? h('span.here-tag', {}, 'you are here') : null), h('span.floor-sub', {}, 'A quiet place to talk'))) : null;
-    lobby?.addEventListener('click', () => { modal.close(); opts.ride(GUEST_LOBBY); });
+    lobby?.addEventListener('click', () => { modal.close(); opts.ride(LOBBY); });
     // Top floor first, the way an elevator's buttons stack, with the roof over them, floor 1 and then the garage at the bottom.
     floorsEl.replaceChildren(
       ...(!guest && built ? [roofButton()] : []),

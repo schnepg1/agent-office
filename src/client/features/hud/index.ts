@@ -55,7 +55,7 @@ export function installHud(ctx: Ctx, core: CoreState, parts: HudParts) {
       { id: 'pulls', icon: '🔀', label: 'Pull requests', section: 'Open', shown: canUseProjectTools, count: () => store.pulls.items.filter((p) => p.state === 'OPEN').length, run: () => openBoard('pulls', net, actions.boardActions()) },
       { id: 'queue', icon: '📋', label: 'Task queue', section: 'Open', shown: canUseProjectTools, count: () => store.queue.tasks.filter((t) => t.status !== 'done').length, title: () => 'Issues and tasks waiting for a worker', run: waiting.showQueue },
       { id: 'services', icon: '🌐', label: 'Services', section: 'Open', shown: canUseProjectTools, count: () => store.services.items.length, title: () => 'Web servers the workers are running', run: () => openServices() },
-      { id: 'whiteboard', icon: '📝', label: 'Whiteboard', section: 'Open', title: () => 'Draw together, live', run: () => openWhiteboard(net) },
+      { id: 'whiteboard', icon: '📝', label: 'Whiteboard', section: 'Open', shown: canUseProjectTools, title: () => 'Draw together, live', run: () => openWhiteboard(net) },
       // Up on the top bar while a meeting is on: what's being worked through in the meeting room.
       {
         id: 'meeting',
