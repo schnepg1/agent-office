@@ -10,7 +10,6 @@ import { throttle } from '../../office/client.js';
 import { coworkLobbyFor } from '../../coworking.js';
 import { coworkZoneAt } from '../../../shared/coworking.js';
 import { LOBBY } from '../../../shared/coworking-space.js';
-import { isGuestClient } from '../../access.js';
 import { COLOR_RE, issueNumber, num, str } from '../../office/input.js';
 import type { HandlerMap } from './types.js';
 import { isGuestClient, isGuestMuted } from '../../access.js';
