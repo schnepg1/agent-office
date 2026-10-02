@@ -1,5 +1,6 @@
 import type { Accounts } from '../accounts.js';
 import type { Me } from '../../shared/protocol.js';
+import type { GuestInfo } from '../../shared/coworking-space.js';
 import type { Ctx, People } from './context.js';
 import type { Client } from './client.js';
 
@@ -9,12 +10,16 @@ const SIGNED_OUT = 4001;
 /** Who the people in the office are signed in as, and telling them when that changes. */
 export function people(ctx: Ctx): People {
   /** Who a connection is: its account's current name and role, or an admin guest on the shared password. */
-  const meOf = (accountId: string | undefined): Me => {
+  const meOf = (accountId: string | undefined, guest?: GuestInfo): Me => {
+    if (guest) return { admin: false, role: 'guest', guest, lobby: true, ...(ctx.cfg.lobbyOnly ? { lobbyOnly: true } : {}) };
     const a = ctx.accounts.get(accountId);
-    return a ? { account: { name: a.name, role: a.role }, admin: a.role === 'admin' } : { admin: !accountId };
+    const lobbyMode = ctx.cfg.lobbyOnly ? { lobby: true, lobbyOnly: true } : {};
+    return a ? { account: { name: a.name, role: a.role }, admin: a.role === 'admin', ...lobbyMode }
+      : { admin: !accountId, ...lobbyMode };
   };
+  const meOfClient = (c: Client) => meOf(c.accountId, c.guestId ? ctx.guests.session(c.guestId)?.info : undefined);
   /** Still signed in: the account wasn't revoked, and the shared password wasn't switched off. */
-  const stillIn = (c: Client) => (c.accountId ? !!ctx.accounts.get(c.accountId) : ctx.accounts.sharedPassword);
+  const stillIn = (c: Client) => c.guestId ? !!ctx.guests.session(c.guestId) : c.accountId ? !!ctx.accounts.get(c.accountId) : ctx.accounts.sharedPassword;
   const signOut = (c: Client) => {
     c.out = true;
     c.ws.close(SIGNED_OUT, 'Signed out');
@@ -29,7 +34,7 @@ export function people(ctx: Ctx): People {
         signOut(c);
         continue;
       }
-      const me = meOf(c.accountId);
+      const me = meOfClient(c);
       if (me.admin !== c.admin) {
         c.admin = me.admin;
         ctx.sendTo(c, { t: 'me', me });

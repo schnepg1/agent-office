@@ -5,6 +5,7 @@ import type { ClientMsg } from '../../shared/protocol.js';
 import { elevatorSpot } from '../../shared/layout.js';
 import { lookFromSeed, sanitizeLook } from '../../shared/avatar.js';
 import { ROOF } from '../../shared/rooftop.js';
+import { LOBBY } from '../../shared/coworking-space.js';
 import type { Ctx } from '../office/context.js';
 import { newClient } from '../office/client.js';
 import { COLOR_RE, spotFrom, str } from '../office/input.js';
@@ -23,21 +24,23 @@ export function onConnection(ctx: Ctx, ws: WebSocket, url: URL, session: Session
   const id = randomBytes(5).toString('hex');
   // Back on the floor they were on before a reload, a restart or closing the tab, else the first floor.
   const wanted = url.searchParams.get('floor');
+  const guest = session.guestId ? ctx.guests.session(session.guestId) : undefined;
+  if (session.guestId && !guest) { ws.close(4003, 'Guest access revoked'); return; }
   // Their floor's gone since (taken off the building, or its checkout deleted): up to the roof instead.
-  const gone = !!wanted && wanted !== ROOF && !floors.has(wanted);
+  const gone = !!wanted && wanted !== ROOF && wanted !== LOBBY && !floors.has(wanted);
   // Up on the roof, as long as there's a building under it.
-  const onRoof = (wanted === ROOF || gone) && floors.size > 0;
-  const floor = onRoof ? undefined : arrivalFloor(wanted);
+  const onRoof = !guest && (wanted === ROOF || gone) && floors.size > 0;
+  const floor = guest || onRoof || wanted === LOBBY ? undefined : arrivalFloor(wanted);
   // Back where they were standing on it too; anywhere else, they arrive by elevator.
   const back = !gone && wanted !== null && (onRoof || floor?.id === wanted);
   const spot = (back && spotFrom(url.searchParams)) || { ...elevatorSpot(), y: 0, rotY: 0 };
   const account = session.account;
   // An account's name is its own; on the shared password people pick one.
-  const name = account?.name ?? (str(url.searchParams.get('name'), 24).trim() || `Guest ${id.slice(0, 3)}`);
+  const name = account?.name ?? guest?.info.name ?? (str(url.searchParams.get('name'), 24).trim() || `Guest ${id.slice(0, 3)}`);
   const colorParam = url.searchParams.get('color') ?? '';
   const intParam = (k: string) => (url.searchParams.get(k) ? Number(url.searchParams.get(k)) : undefined);
-  const me = meOf(account?.id);
-  const client = newClient(id, ws, { accountId: account?.id, admin: me.admin }, {
+  const me = meOf(account?.id, guest?.info);
+  const client = newClient(id, ws, { accountId: account?.id, admin: me.admin, ...(guest ? { guestId: guest.id, guestName: guest.info.name, guestFloorIds: guest.info.floorIds } : {}) }, {
     id,
     name,
     color: COLOR_RE.test(colorParam) ? colorParam : '#4f86f7',
@@ -53,11 +56,27 @@ export function onConnection(ctx: Ctx, ws: WebSocket, url: URL, session: Session
     sharing: false,
     ...(account ? { account: true } : {}),
     ...(url.searchParams.get('lite') === '1' ? { lite: true } : {}),
-    ...(onRoof ? { floor: ROOF } : floor ? { floor: floor.id } : {}),
+    ...(guest || wanted === LOBBY || (!onRoof && !floor) ? { floor: LOBBY } : onRoof ? { floor: ROOF } : floor ? { floor: floor.id } : {}),
   });
+  if (guest) {
+    client.guestMuted = guest.muted;
+    client.setGuestMuted = (muted) => {
+      ctx.guests.setMuted(guest.id, muted);
+      for (const target of clients.values()) if (target.guestId === guest.id) {
+        target.guestMuted = muted;
+        if (muted) { target.peer.voice = false; target.peer.muted = true; target.peer.sharing = false; }
+      }
+    };
+    client.revokeGuestSession = () => {
+      ctx.guests.revokeSession(guest.id);
+      for (const target of clients.values()) if (target.guestId === guest.id) { target.out = true; target.ws.close(4003, 'Guest access revoked'); }
+    };
+  }
   // Maps of your own may have been added or edited since: everyone already in hears first.
-  const mapWas = maps.pick();
-  if (maps.reload()) mapNews(ctx, mapWas);
+  if (!guest) {
+    const mapWas = maps.pick();
+    if (maps.reload()) mapNews(ctx, mapWas);
+  }
   clients.set(id, client);
   if (account) accounts.seen(account.id);
   ws.on('pong', () => (client.isAlive = true));
@@ -65,27 +84,27 @@ export function onConnection(ctx: Ctx, ws: WebSocket, url: URL, session: Session
   sendTo(client, {
     t: 'welcome',
     you: id,
-    peers: [...clients.values()].map((c) => c.peer),
-    floors: floorInfos(),
-    projectsDir: building.projectsDirState(),
+    peers: [...clients.values()].filter((c) => !guest || c.peer.floor === LOBBY || !!c.peer.floor && guest.info.floorIds.includes(c.peer.floor)).map((c) => c.peer),
+    floors: guest ? floorInfos().filter((f) => guest.info.floorIds.includes(f.id)).map((f) => ({ ...f, dir: '', repo: undefined, addedBy: '', people: 0, workers: 0, busy: 0, waiting: 0 })) : floorInfos(),
+    projectsDir: guest ? { dir: '', custom: false } : building.projectsDirState(),
     ice: cfg.iceServers,
-    chat: chat.recent(50),
-    invites: team.available || !!cfg.tailnet,
+    chat: guest ? chat.recent(50).filter((line) => line.floor === (client.peer.floor ?? LOBBY)) : chat.recent(50),
+    invites: guest ? false : team.available || !!cfg.tailnet,
     version: upgrader.version,
-    upgrade: upgrader.state,
-    usage: ledger.state(),
-    limits: limitsOf(client).state,
+    upgrade: guest ? { available: false, phase: 'idle' } : upgrader.state,
+    usage: guest ? { total: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0, cost: 0, calls: 0 }, today: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0, cost: 0, calls: 0 }, day: '', pauseHiring: false } : ledger.state(),
+    limits: guest ? { windows: [], at: 0 } : limitsOf(client).state,
     me,
-    notify: webhook.state(),
-    machine: machine.state(),
+    notify: guest ? {} : webhook.state(),
+    machine: guest ? { cpu: 0, cores: 0, memUsed: 0, memTotal: 0, history: [], workers: 0 } : machine.state(),
     sky: sky.state,
     theme: themes.state(),
-    map: maps.state(),
-    prompts: prompts.state(),
-    leaveOnMerge: leaveOnMerge.state(),
-    ...(onRoof ? roofView(ctx) : floorView(ctx, floor)),
+    map: guest ? { pick: 'office', custom: [] } : maps.state(),
+    prompts: guest ? { custom: {} } : prompts.state(),
+    leaveOnMerge: guest ? { on: false } : leaveOnMerge.state(),
+    ...(onRoof ? roofView(ctx) : { ...floorView(ctx, floor), ...(guest || (!onRoof && !floor) ? { floor: LOBBY } : {}) }),
   });
-  screensOf(ctx, client, floor);
+  if (!guest) screensOf(ctx, client, floor);
   broadcast({ t: 'peer.join', peer: client.peer }, id);
   if (account) accountsChanged(); // now online
   floorsChanged();
@@ -94,7 +113,7 @@ export function onConnection(ctx: Ctx, ws: WebSocket, url: URL, session: Session
     // Anyone whose process ended since (exited, or failed to resume) gets up as you walk in.
     floor.workers.wakeAll();
   }
-  limitsOf(client).refresh();
+  if (!guest) limitsOf(client).refresh();
   if (account) {
     sendTo(client, { t: 'signins', state: signins.state(account.id) });
     void signins.look(account.id);

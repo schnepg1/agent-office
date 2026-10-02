@@ -61,6 +61,8 @@ export interface ChatLine {
   at: number;
   /** Said by someone signed in with their own account. */
   account?: boolean;
+  /** Where it was said. Older untagged messages are never exposed to scoped guests. */
+  floor?: string;
 }
 
 /** A line of a worker's terminal that matched a search. */

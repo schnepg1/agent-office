@@ -18,7 +18,7 @@ type Where = { path: string | readonly string[]; prefix?: never } | { prefix: st
 
 interface Answers {
   /** Only requests with this method; any method when missing, and the route answers the rest itself. */
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'DELETE';
 }
 
 /**
@@ -27,6 +27,7 @@ interface Answers {
  */
 export type Route = Where &
   Answers &
+  { guest?: boolean } &
   (
     | { auth: 'public'; handle(ctx: Ctx, r: RouteRequest): unknown }
     | { auth: 'session'; handle(ctx: Ctx, r: RouteRequest & { session: Session }): unknown }
@@ -65,14 +66,19 @@ export function requestHandler(ctx: Ctx, routes: readonly Route[]) {
       const r: RouteRequest = { req, res, url, path: p };
       for (const route of open) if (route.auth === 'public' && matches(route, req.method, p)) return await route.handle(ctx, r);
 
-      const session = auth.fromRequest(req);
+      let session = auth.fromRequest(req);
+      if (session?.guestId) {
+        const active = ctx.guests.session(session.guestId);
+        if (!active) session = undefined;
+        else session.guest = active.info;
+      }
       if (!session) {
         if (p.startsWith('/api/')) return send(res, 401, { error: 'Not logged in' });
         // Back to the 2D view after signing in, if that's where they were going.
         res.writeHead(302, { location: p === '/lite' ? '/login?next=/lite' : '/login' }).end();
         return;
       }
-      for (const route of signedIn) if (route.auth === 'session' && matches(route, req.method, p)) return await route.handle(ctx, { ...r, session });
+      for (const route of signedIn) if (route.auth === 'session' && (!session.guestId || route.guest) && matches(route, req.method, p)) return await route.handle(ctx, { ...r, session });
     } catch (err) {
       console.error(err);
       if (!res.headersSent) send(res, 500, { error: 'Internal error' });

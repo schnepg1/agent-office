@@ -9,6 +9,7 @@ import { isBarGame } from '../../../shared/bargames.js';
 import { throttle } from '../../office/client.js';
 import { COLOR_RE, issueNumber, num, str } from '../../office/input.js';
 import type { HandlerMap } from './types.js';
+import { isGuestClient, isGuestMuted } from '../../access.js';
 
 export const presenceHandlers = {
   move(ctx, c, msg) {
@@ -94,20 +95,20 @@ export const presenceHandlers = {
     ctx.broadcast({ t: 'peer.update', peer: c.peer });
   },
   voice(ctx, c, msg) {
-    c.peer.voice = !!msg.voice;
-    c.peer.muted = !!msg.muted;
-    c.peer.sharing = !!msg.sharing;
+    c.peer.voice = isGuestMuted(c) ? false : !!msg.voice;
+    c.peer.muted = isGuestMuted(c) || !!msg.muted;
+    c.peer.sharing = isGuestClient(c) ? false : !!msg.sharing;
     ctx.broadcast({ t: 'peer.update', peer: c.peer });
   },
   rtc(ctx, c, msg) {
     const target = ctx.clients.get(str(msg.to, 32));
-    if (target) ctx.sendTo(target, { t: 'rtc', from: c.id, data: msg.data });
+    if (target && target.peer.floor === c.peer.floor && !(isGuestClient(c) && isGuestMuted(c))) ctx.sendTo(target, { t: 'rtc', from: c.id, data: msg.data });
   },
   chat(ctx, c, msg) {
     const who = c.peer.name;
     const text = str(msg.text, 500).trim();
     if (!text) return;
-    const line: ChatLine = { from: c.id, name: who, color: c.peer.color, text, at: Date.now(), ...(c.accountId ? { account: true } : {}) };
+    const line: ChatLine = { from: c.id, name: who, color: c.peer.color, text, at: Date.now(), ...(c.accountId ? { account: true } : {}), ...(c.peer.floor ? { floor: c.peer.floor } : {}) };
     ctx.chat.add(line);
     ctx.broadcast({ t: 'chat', ...line });
   },

@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual, randomBytes, scrypt } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type { Account, Accounts } from './accounts.js';
+import type { GuestInfo } from '../shared/coworking-space.js';
 
 export const COOKIE_NAME = 'ao_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
@@ -13,10 +14,14 @@ const MAX_LINKS = 8;
 /** A signed-in browser: with its own account, or (no account) with the shared office password. */
 export interface Session {
   account?: Account;
+  /** A scoped invitation session; resolved against the live invitation registry by HTTP/WS. */
+  guestId?: string;
+  guest?: GuestInfo;
 }
 
 export class Auth {
   private attempts = new Map<string, { count: number; resetAt: number }>();
+  private guestEntries = new Map<string, { count: number; resetAt: number }>();
   /** Hashes of the one-time sign-in links' keys that haven't been used yet. */
   private links = new Set<string>();
   /** Signs shared-password sessions. Derived from the password too, so changing it logs those out. */
@@ -66,6 +71,15 @@ export class Auth {
     this.attempts.delete(ip);
   }
 
+  /** A valid reusable guest link must not reset an unbounded loop of session creation. */
+  allowGuestEntry(ip: string): boolean {
+    const now = Date.now();
+    if (this.guestEntries.size > 10_000) for (const [k, v] of this.guestEntries) if (v.resetAt < now) this.guestEntries.delete(k);
+    const rec = this.guestEntries.get(ip);
+    if (!rec || rec.resetAt < now) { this.guestEntries.set(ip, { count: 1, resetAt: now + 60_000 }); return true; }
+    return ++rec.count <= 60;
+  }
+
   /**
    * The key of a sign-in link that works once, for whoever started the office in a terminal: it
    * signs in like the shared password. Only its hash is kept, in memory, so a restart forgets it.
@@ -98,7 +112,7 @@ export class Auth {
     const dot = token.indexOf('.');
     if (dot < 1) return undefined;
     const payload = token.slice(0, dot);
-    let body: { exp?: unknown; u?: unknown };
+    let body: { exp?: unknown; u?: unknown; g?: unknown };
     try {
       body = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     } catch {
@@ -109,9 +123,16 @@ export class Auth {
     const expected = Buffer.from(this.sign(payload, !!accountId));
     if (sig.length !== expected.length || !timingSafeEqual(sig, expected)) return undefined;
     if (typeof body.exp !== 'number' || body.exp <= Date.now()) return undefined;
+    if (!accountId && typeof body.g === 'string' && body.g) return { guestId: body.g };
     if (!accountId) return this.accounts.sharedPassword ? {} : undefined;
     const account = this.accounts.get(accountId);
     return account ? { account } : undefined;
+  }
+
+  /** Signs a temporary guest registry ID. Its scope and revocation live in Guests, never in the token. */
+  issueGuest(guestId: string): string {
+    const payload = Buffer.from(JSON.stringify({ exp: Date.now() + SESSION_TTL_MS, n: randomBytes(8).toString('hex'), g: guestId })).toString('base64url');
+    return `${payload}.${this.sign(payload, false)}`;
   }
 
   fromRequest(req: IncomingMessage): Session | undefined {
@@ -124,7 +145,10 @@ export class Auth {
    */
   fromAnyCookie(req: IncomingMessage): boolean {
     for (const [name, value] of Object.entries(parseCookies(req.headers.cookie))) {
-      if (OFFICE_COOKIE.test(name) && this.verify(value)) return true;
+      if (OFFICE_COOKIE.test(name)) {
+        const session = this.verify(value);
+        if (session && !session.guestId) return true;
+      }
     }
     return false;
   }
