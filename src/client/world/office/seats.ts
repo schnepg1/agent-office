@@ -234,6 +234,7 @@ export const desks: Fixture = (site) => {
     const it: Interactable = { kind: 'desk', deskId: def.id, x: seat.x, z: seat.z, radius: 1.3 };
     site.interactables.push(it);
     view.group.userData.interact = it;
+    seatable(view.chair, `desk-seat-${def.id.slice(5)}`, 1, site.interactables);
   });
   return {};
 };

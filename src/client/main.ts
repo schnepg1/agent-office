@@ -38,6 +38,7 @@ import { installCarrying } from './features/carrying';
 import { installCars } from './features/cars';
 import { installChat } from './features/chat';
 import { installClimbing } from './features/climbing';
+import { installCoworking } from './features/coworking';
 import { installCoffee } from './features/coffee';
 import { installDog } from './features/dog';
 import { installEmotes } from './features/emotes';
@@ -173,6 +174,7 @@ parts.pointer = installPointer(ctx, core, parts);
 installChat(ctx);
 parts.talk = installVoice(ctx, { tv: parts.tv });
 parts.hud = installHud(ctx, core, parts);
+installCoworking(ctx, parts.seating);
 
 // ---- Main loop ---------------------------------------------------------------------------------------
 fitWindow(ctx);
