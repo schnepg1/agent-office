@@ -8,6 +8,8 @@ Guest invitations grant view-only access to the exact project floors selected by
 
 Open the **Y** coworking panel to set a short intention and status, see who is around, and claim a real desk chair. The west side is a quiet zone; the east side is for conversation. In the host's coworking panel, mute or remove a guest when needed. Quiet mode mutes your microphone locally. Zone audio mixes received WebRTC audio by proximity; it does not remove peer connections or reduce voice bandwidth.
 
+Guest sessions and desk profiles are held in memory. After a server restart, visitors need to enter again; invitations survive a restart. Removing a guest invalidates that session across its tabs, but a reusable invitation can create a new session. Revoke the invitation to stop further entries. Existing shared-password users and member accounts retain their trusted access; use guest invitations for limited visitors.
+
 ## Choose a place to host it
 
 For a quick private room, run Agent Office on a computer that stays on and share it over your private LAN or a VPN such as [Tailscale](https://tailscale.com). Keep the listener on localhost or the private interface. Guest entry and browser voice need HTTPS outside localhost, so pair remote access with a TLS proxy. A laptop is fine for a few people, but it must stay awake and connected. Local hosting keeps projects and agent credentials on that machine.
