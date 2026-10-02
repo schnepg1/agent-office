@@ -34,7 +34,6 @@ export class Guests {
   private stamp = '';
   private data: Saved = { invitations: [] };
   private sessions = new Map<string, GuestSession>();
-  private mutedNames = new Set<string>();
   private unreadable = false;
 
   constructor(dataDir: string) {
@@ -96,7 +95,6 @@ export class Guests {
     const session: GuestSession = {
       id: randomBytes(24).toString('base64url'), inviteId: invite.id, expiresAt: Math.min(invite.expiresAt, Date.now() + MAX_TTL),
       info: { name, lobby: true, floorIds: [...invite.floorIds] },
-      muted: this.mutedNames.has(`${invite.id}:${name.toLocaleLowerCase()}`),
     };
     this.sessions.set(session.id, session);
     return session;
@@ -121,9 +119,7 @@ export class Guests {
   setMuted(id: string, muted: boolean): boolean {
     const session = this.session(id);
     if (!session) return false;
-    const key = `${session.inviteId}:${session.info.name.toLocaleLowerCase()}`;
-    if (muted) this.mutedNames.add(key); else this.mutedNames.delete(key);
-    for (const s of this.sessions.values()) if (s.inviteId === session.inviteId && s.info.name.toLocaleLowerCase() === session.info.name.toLocaleLowerCase()) s.muted = muted;
+    session.muted = muted;
     return true;
   }
 
@@ -148,7 +144,12 @@ export class Guests {
       const parsed = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<Saved>;
       this.data = { invitations: Array.isArray(parsed.invitations) ? parsed.invitations.filter((v) => v && typeof v.id === 'string' && typeof v.tokenHash === 'string' && Array.isArray(v.floorIds)) : [] };
       this.unreadable = false;
-    } catch (err) { this.unreadable = true; console.error(`agent-office: couldn't read ${this.file}: ${(err as Error).message}`); }
+    } catch (err) {
+      this.data = { invitations: [] };
+      this.sessions.clear();
+      this.unreadable = true;
+      console.error(`agent-office: couldn't read ${this.file}: ${(err as Error).message}`);
+    }
   }
   private save() {
     if (this.unreadable) return;

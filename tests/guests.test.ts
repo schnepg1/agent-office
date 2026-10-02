@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Guests } from '../src/server/guests.js';
@@ -31,24 +31,32 @@ test('guest invitations are scoped, tokens are stored only as hashes, and revoca
   });
 });
 
-test('reusable guest invitation labels do not override visitor names and moderation survives reconnects', () => {
-  withGuests((guests) => {
+test('reusable invitation labels do not override visitor names and mute applies only to one session', () => {
+  withGuests((guests, dir) => {
     const made = guests.create('host', { name: 'Open coworking', floorIds: [], uses: null });
     assert.equal(typeof made, 'object');
     if (typeof made === 'string') return;
     const first = guests.enter(made.token, 'Mina');
-    const second = guests.enter(made.token, 'Kai');
+    const sameName = guests.enter(made.token, 'Mina');
     assert.equal(typeof first, 'object');
-    assert.equal(typeof second, 'object');
-    if (typeof first === 'string' || typeof second === 'string') return;
+    assert.equal(typeof sameName, 'object');
+    if (typeof first === 'string' || typeof sameName === 'string') return;
     assert.equal(first.info.name, 'Mina');
-    assert.equal(second.info.name, 'Kai');
     assert.equal(guests.setMuted(first.id, true), true);
     assert.equal(guests.session(first.id)?.muted, true);
+    assert.equal(guests.session(sameName.id)?.muted, undefined);
     assert.equal(guests.revokeSession(first.id), true);
     assert.equal(guests.session(first.id), undefined);
     const rejoined = guests.enter(made.token, 'Mina');
     assert.equal(typeof rejoined, 'object');
-    if (typeof rejoined !== 'string') assert.equal(rejoined.muted, true);
+    if (typeof rejoined !== 'string') {
+      assert.notEqual(rejoined.id, first.id);
+      assert.equal(rejoined.muted, undefined);
+    }
+
+    writeFileSync(path.join(dir, 'guest-invitations.json'), '{broken json');
+    assert.equal(guests.session(sameName.id), undefined);
+    assert.deepEqual(guests.list(), []);
+    assert.equal(guests.enter(made.token, 'Mina'), 'That guest invitation is invalid or expired');
   });
 });
