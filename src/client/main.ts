@@ -47,6 +47,7 @@ import { installGallery, installHanging } from './features/hanging';
 import { installHerald } from './features/herald';
 import { installHud } from './features/hud';
 import { installJukebox } from './features/jukebox';
+import { installLobby } from './features/lobby';
 import { installMeeting } from './features/meeting';
 import { installPalette } from './features/palette';
 import { installPeers } from './features/peers';
@@ -173,6 +174,7 @@ parts.pointer = installPointer(ctx, core, parts);
 installChat(ctx);
 parts.talk = installVoice(ctx, { tv: parts.tv });
 parts.hud = installHud(ctx, core, parts);
+installLobby(ctx);
 
 // ---- Main loop ---------------------------------------------------------------------------------------
 fitWindow(ctx);

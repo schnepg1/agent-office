@@ -32,7 +32,8 @@ curl -fsSL https://raw.githubusercontent.com/AgentSystemLabs/agent-office/main/i
 
 ## What it is
 
-- **A floor per project.** Ride the elevator, pick one of your GitHub repos, and the office clones it (showing how far along it is) and opens a floor for it. Every worker, board and queue on that floor works in that checkout.
+- **A public coworking lobby.** Everyone arrives on **G**, the permanent ground floor. Sit at a shared desk, talk over voice, share screens, draw on the whiteboard or use the lounge and games. The lobby belongs to the building and stays open even with no projects.
+- **A floor per project.** Project floors start at **1**, above the lobby. Ride the elevator, pick one of your GitHub repos, and the office clones it (showing how far along it is) and opens a floor for it. Every worker, board and queue on that floor works in that checkout. Return to **Public Lobby · G** through the elevator or floor list.
 - **Workers at desks.** Walk up to an empty desk, press **E**, and pick Claude Code, Codex, OpenCode, Grok, Muse, DeepSeek Harness or Pi. The agent's live terminal shows on its laptop, and anyone can open it and type.
 - **You can see who needs you.** A worker that needs input or has finished jumps up and down and dings. Press **N** to go straight to the one that has waited longest.
 - **From your phone, too.** `/lite` is the office in 2D: every worker and what it's waiting on, its terminal with the keys a phone keyboard lacks, and the boards. The 3D office offers it on a phone or a slow computer.
@@ -74,7 +75,7 @@ The first time it starts, it walks you through setting up, right in the terminal
 2. **GitHub.** If the GitHub CLI isn't signed in, it offers to run `gh auth login` for you.
 3. **Your first project.** Pick one of your repos by number, or type `owner/name`, and the office clones it as the first floor.
 
-Press Enter to skip a step: the elevator in the office asks for your first project too. Then the office opens in your browser, **already signed in**, with a link that works once. The terminal also prints the office password, for signing in from another browser (it's saved in `~/agent-office/.agent-office/config.json`).
+Press Enter to skip a step: you can add your first project from the lobby’s elevator whenever you’re ready. Then the office opens in your browser, **already signed in**, with a link that works once. The terminal also prints the office password, for signing in from another browser (it's saved in `~/agent-office/.agent-office/config.json`).
 
 Walk to an empty desk, press **E** and hire a worker.
 
