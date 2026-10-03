@@ -91,7 +91,7 @@ export function toggleFloorMenu(anchor: HTMLElement, opts: FloorMenuOptions): vo
       close();
       opts.roof?.();
     });
-    el.replaceChildren(h('div.floor-menu-head', {}, guest ? 'Guest visit' : `🏢 ${floors.length} floor${floors.length === 1 ? '' : 's'}`), ...(guest ? [lobby] : []), ...(!guest && floors.length && opts.roof ? [roof] : []), ...items, add);
+    el.replaceChildren(h('div.floor-menu-head', {}, guest ? 'Guest visit' : `🏢 ${floors.length} floor${floors.length === 1 ? '' : 's'}`), lobby, ...(!guest && floors.length && opts.roof ? [roof] : []), ...items, add);
   };
 
   const place = () => {

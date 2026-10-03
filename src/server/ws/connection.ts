@@ -6,6 +6,7 @@ import { elevatorSpot } from '../../shared/layout.js';
 import { lookFromSeed, sanitizeLook } from '../../shared/avatar.js';
 import { ROOF } from '../../shared/rooftop.js';
 import { LOBBY } from '../../shared/coworking-space.js';
+import { LOBBY_PLAN } from '../../shared/lobby-map.js';
 import type { Ctx } from '../office/context.js';
 import { newClient } from '../office/client.js';
 import { COLOR_RE, spotFrom, str } from '../office/input.js';
@@ -32,8 +33,9 @@ export function onConnection(ctx: Ctx, ws: WebSocket, url: URL, session: Session
   const onRoof = !guest && (wanted === ROOF || gone) && floors.size > 0;
   const floor = guest || onRoof || wanted === LOBBY ? undefined : arrivalFloor(wanted);
   // Back where they were standing on it too; anywhere else, they arrive by elevator.
-  const back = !gone && wanted !== null && (onRoof || floor?.id === wanted);
-  const spot = (back && spotFrom(url.searchParams)) || { ...elevatorSpot(), y: 0, rotY: 0 };
+  const inLobby = !!guest || (!onRoof && !floor);
+  const back = !guest && !gone && wanted !== null && (onRoof || floor?.id === wanted || wanted === LOBBY);
+  const spot = (back && spotFrom(url.searchParams)) || (inLobby ? LOBBY_PLAN.spawn : { ...elevatorSpot(), y: 0, rotY: 0 });
   const account = session.account;
   // An account's name is its own; on the shared password people pick one.
   const name = account?.name ?? guest?.info.name ?? (str(url.searchParams.get('name'), 24).trim() || `Guest ${id.slice(0, 3)}`);
@@ -86,7 +88,7 @@ export function onConnection(ctx: Ctx, ws: WebSocket, url: URL, session: Session
     t: 'welcome',
     you: id,
     peers: [...clients.values()].filter((c) => !guest || c.peer.floor === LOBBY || !!c.peer.floor && guest.info.floorIds.includes(c.peer.floor)).map((c) => c.peer),
-    floors: guest ? floorInfos().filter((f) => guest.info.floorIds.includes(f.id)).map((f) => ({ ...f, dir: '', repo: undefined, addedBy: '', people: 0, workers: 0, busy: 0, waiting: 0 })) : floorInfos(),
+    floors: floorInfos(),
     projectsDir: guest ? { dir: '', custom: false } : building.projectsDirState(),
     ice: cfg.iceServers,
     chat: guest ? chat.recent(50).filter((line) => line.floor === (client.peer.floor ?? LOBBY)) : chat.recent(50),
@@ -100,7 +102,7 @@ export function onConnection(ctx: Ctx, ws: WebSocket, url: URL, session: Session
     machine: guest ? { cpu: 0, cores: 0, memUsed: 0, memTotal: 0, history: [], workers: 0 } : machine.state(),
     sky: sky.state,
     theme: themes.state(),
-    map: guest ? { pick: 'office', custom: [] } : maps.state(),
+    map: guest && !guest.info.floorIds.length ? { pick: 'office', custom: [] } : maps.state(),
     prompts: guest ? { custom: {} } : prompts.state(),
     leaveOnMerge: guest ? { on: false } : leaveOnMerge.state(),
     ...(onRoof ? roofView(ctx) : { ...floorView(ctx, floor), ...(guest || (!onRoof && !floor) ? { floor: LOBBY } : {}) }),

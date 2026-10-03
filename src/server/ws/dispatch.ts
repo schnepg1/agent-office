@@ -23,8 +23,8 @@ export function dispatch(ctx: Ctx, c: Client, msg: ClientMsg): void {
     return;
   }
   if (isGuestClient(c)) {
-    const safe = new Set(['move', 'sit', 'profile', 'emote', 'voice', 'rtc', 'ping', 'chat', 'doing', 'floor.go', 'cowork.claim', 'cowork.release', 'cowork.profile', 'cowork.chat', 'cowork.sync']);
-    if (!safe.has(msg.t)) { ctx.warn(c, 'That action is not available to guests'); return; }
+
+    if (!GUEST_COMMANDS.has(msg.t)) { ctx.warn(c, 'That action is not available to guests'); return; }
   }
   if (ctx.cfg.lobbyOnly && !isLobbyOnlyMessage(msg.t)) return;
   (handlers[msg.t] as AnyHandler)(ctx, c, msg);
@@ -34,3 +34,5 @@ function isLobbyOnlyMessage(t: string): boolean {
   return t === 'move' || t === 'sit' || t === 'profile' || t === 'emote' || t === 'voice' || t === 'rtc' || t === 'ping' || t === 'chat' || t === 'doing' ||
     t === 'floor.go' || t.startsWith('cowork.');
 }
+
+const GUEST_COMMANDS = new Set(['move', 'sit', 'profile', 'emote', 'voice', 'rtc', 'ping', 'chat', 'doing', 'floor.go', 'cowork.claim', 'cowork.release', 'cowork.profile', 'cowork.sync']);

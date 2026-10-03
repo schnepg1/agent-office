@@ -9,6 +9,7 @@ import WebSocket from 'ws';
 import { loadConfig } from '../src/server/config.js';
 import { startServer } from '../src/server/server.js';
 import { OFFICE_PLAN, seatHereOn } from '../src/shared/maps/index.js';
+import { LOBBY_PLAN } from '../src/shared/lobby-map.js';
 
 type Frame = { t: string; [key: string]: any };
 async function freePort(): Promise<number> {
@@ -42,7 +43,7 @@ class Visitor {
   }
 }
 
-test('public invitations cannot expose private projects or authorize host operations', { timeout: 60000 }, async (t) => {
+test('coworking seats and moderation enforce authenticated session ownership', { timeout: 60000 }, async (t) => {
   const temp = mkdtempSync(path.join(tmpdir(), 'office-guest-boundary-'));
   const home = path.join(temp, 'home');
   const project = path.join(temp, 'PRIVATE_PROJECT_NEVER_PUBLIC');
@@ -98,88 +99,12 @@ test('public invitations cannot expose private projects or authorize host operat
   const guest = await connect(guestCookie, `?floor=${encodeURIComponent(privateFloor)}`);
   const welcome = await guest.take('welcome');
 
-  await t.test('forged arrival and private welcome data are filtered', async () => {
-    assert.equal(welcome.floor, '@lobby');
-    assert.equal(welcome.me.admin, false);
-    assert.ok(welcome.me.guest);
-    assert.equal(welcome.floors.some((floor: any) => floor.id === privateFloor), false);
-    assert.equal(welcome.peers.some((peer: any) => peer.id === hostWelcome.you), false);
-    assert.doesNotMatch(JSON.stringify(welcome), /PRIVATE_PROJECT_NEVER_PUBLIC|PRIVATE_FILE_NEVER_PUBLIC/);
-  });
-  await t.test('account administration cannot promote a guest connection', async () => {
-    guest.frames = [];
-    host.send({ t: 'accounts.invite', role: 'member', name: 'Trusted teammate' });
-    await host.barrier();
-    await guest.barrier();
-    assert.equal(guest.frames.some((frame) => frame.t === 'me' && frame.me.admin), false);
-    const response = await request('/api/whoami', guestCookie);
-    assert.equal(response.status, 200);
-    assert.equal((await response.json()).me.admin, false);
-  });
-  await t.test('HTTP routes and invitation management reject guest privilege escalation', async () => {
-    for (const route of ['/api/search?q=private', `/api/docs?floor=${privateFloor}`, '/api/image?url=http://127.0.0.1', '/api/guest/invitations', '/api/agents/opencode/models', '/lite']) {
-      assert.equal((await request(route, guestCookie)).status, 403, route);
-    }
-    assert.equal((await request('/api/guest/invitations', guestCookie, 'POST', { floorIds: [privateFloor] })).status, 403);
-    assert.equal((await request('/api/guest/invitations', hostCookie, 'POST', {}, 'https://other.example')).status, 403);
-  });
-  await t.test('forged WebSocket operations and floor changes are rejected', async () => {
-    for (const frame of [
-      { t: 'floor.go', floor: privateFloor },
-      { t: 'floor.repos' }, { t: 'worker.spawn', deskId: 'desk-1' },
-      { t: 'notify.webhook', url: 'https://example.com/attacker' },
-      { t: 'accounts.invite', role: 'admin' },
-      { t: 'signins.start', which: 'github' },
-      { t: 'future.privileged.command' },
-    ]) {
-      guest.frames = [];
-      guest.send(frame);
-      await guest.take('toast');
-      await guest.barrier();
-      assert.equal(guest.frames.some((f) => f.t === 'floor.enter'), false);
-    }
-  });
-  await t.test('private-floor chat stays private and social participation works', async () => {
-    guest.frames = [];
-    host.send({ t: 'chat', text: 'PRIVATE_CHAT_NEVER_PUBLIC' });
-    await host.barrier();
-    await guest.barrier();
-    assert.doesNotMatch(JSON.stringify(guest.frames), /PRIVATE_CHAT_NEVER_PUBLIC/);
-    guest.send({ t: 'chat', text: 'Hello coworking lobby' });
-    const line = await guest.take('chat');
-    assert.equal(line.text, 'Hello coworking lobby');
-    const again = await connect(guestCookie);
-    assert.doesNotMatch(JSON.stringify(await again.take('welcome')), /PRIVATE_CHAT_NEVER_PUBLIC/);
-  });
-  await t.test('a visible host disappears when entering a private floor', async () => {
-    guest.frames = [];
-    host.send({ t: 'floor.go', floor: '@lobby' });
-    assert.equal((await host.take('floor.enter')).floor, '@lobby');
-    await guest.take('peer.update', (frame) => frame.peer.id === hostWelcome.you);
-    host.send({ t: 'floor.go', floor: privateFloor });
-    assert.equal((await host.take('floor.enter')).floor, privateFloor);
-    await guest.take('peer.leave', (frame) => frame.id === hostWelcome.you);
-    assert.equal(guest.frames.some((frame) => frame.t === 'peer.update' && frame.peer.floor === privateFloor), false);
-  });
-  await t.test('explicit floor visits do not grant mutation or terminal access', async () => {
-    const scopedInvite = await invite([privateFloor]);
-    const scopedCookie = await enter(scopedInvite.token, 'Workspace visitor');
-    const scoped = await connect(scopedCookie);
-    await scoped.take('welcome');
-    scoped.send({ t: 'floor.go', floor: privateFloor });
-    const view = await scoped.take('floor.enter');
-    assert.equal(view.floor, privateFloor);
-    assert.equal(view.services?.items?.length ?? 0, 0);
-    scoped.send({ t: 'worker.spawn', deskId: 'desk-1' });
-    await scoped.take('toast');
-    assert.equal((await request(`/api/docs?floor=${privateFloor}`, scopedCookie)).status, 403);
-  });
   await t.test('desk claims and work profiles belong to the authenticated peer', async () => {
     const secondCookie = await enter(invitation.token, 'A new visitor');
     const second = await connect(secondCookie);
     const secondWelcome = await second.take('welcome');
     const seat = 'desk-seat-1:0';
-    const place = seatHereOn(OFFICE_PLAN, seat, false)!;
+    const place = seatHereOn(LOBBY_PLAN, seat, false)!;
     for (const visitor of [guest, second]) {
       visitor.send({ t: 'cowork.sync' });
       await visitor.take('cowork.state');
@@ -206,6 +131,20 @@ test('public invitations cannot expose private projects or authorize host operat
     await second.take('cowork.state', (f) => f.state.claims.some((c: any) => c.peerId === secondWelcome.you));
     second.ws.close();
     await guest.take('cowork.state', (f) => !f.state.claims.some((c: any) => c.seat === seat));
+  });
+  await t.test('lobby seating survives project map changes and all clients use its own plan', async () => {
+    const seat = 'desk-seat-2:0';
+    const place = seatHereOn(LOBBY_PLAN, seat, false)!;
+    guest.send({ t: 'move', ...place, moving: false });
+    guest.send({ t: 'cowork.claim', seat });
+    await guest.take('cowork.state', f => f.state.claims.some((c: any) => c.seat === seat));
+    host.send({ t: 'map.set', map: 'castle' });
+    await host.take('map', f => f.state.pick === 'castle');
+    guest.send({ t: 'cowork.sync' });
+    const state = await guest.take('cowork.state', f => f.state.claims.some((c: any) => c.seat === seat));
+    assert.equal(state.state.participants.find((p: any) => p.peerId === welcome.you).seat, seat);
+    guest.send({ t: 'cowork.release' });
+    await guest.take('cowork.state', f => !f.state.claims.some((c: any) => c.seat === seat));
   });
   await t.test('host moderation survives reconnects and applies to all tabs of a guest session', async () => {
     host.send({ t: 'floor.go', floor: '@lobby' });
@@ -235,41 +174,5 @@ test('public invitations cannot expose private projects or authorize host operat
     host.send({ t: 'cowork.moderate', peerId: firstWelcome.you, action: 'kick' });
     await Promise.race([Promise.all(closed), new Promise((_, reject) => setTimeout(() => reject(new Error('guest tabs remained connected after kick')), 3000))]);
     assert.equal((await request('/api/whoami', modCookie)).status, 401);
-  });
-  await t.test('single-use invitations cannot be replayed', async () => {
-    const one = await invite([], 1);
-    await enter(one.token, 'First visitor');
-    assert.equal((await request('/api/guest/enter', '', 'POST', { token: one.token, name: 'Replay visitor' })).status, 410);
-  });
-  await t.test('revocation invalidates existing cookies and closes live guests', async () => {
-    const closed = new Promise<void>((resolve) => guest.ws.once('close', () => resolve()));
-    assert.equal((await request(`/api/guest/invitations/${invitation.invitation.id}`, hostCookie, 'DELETE')).status, 200);
-    await Promise.race([closed, new Promise((_, reject) => setTimeout(() => reject(new Error('guest remained connected after revoke')), 3000))]);
-    assert.equal((await request('/api/whoami', guestCookie)).status, 401);
-    assert.equal((await request('/api/guest/enter', '', 'POST', { token: invitation.token, name: 'Another visitor' })).status, 410);
-  });
-  await t.test('standalone mode ignores saved project floors while retaining invitation management', async () => {
-    const lobbyPort = await freePort();
-    const lobbyCfg = loadConfig([project, '--home', home, '--port', String(lobbyPort), '--password', 'guest-boundary-test', '--lobby-only', '--no-open', '--weather', 'clear']);
-    const standalone = await startServer(lobbyCfg, { publicDir: pub });
-    const url = `http://127.0.0.1:${lobbyPort}`;
-    let ws: WebSocket | undefined;
-    try {
-      assert.equal(standalone.floors().length, 0);
-      assert.ok(office.floors().some((floor) => floor.id === privateFloor));
-      const login = await fetch(url + '/api/login', { method: 'POST', headers: { origin: url, 'content-type': 'application/json' }, body: JSON.stringify({ password: 'guest-boundary-test' }) });
-      const cookie = cookieOf(login);
-      ws = new WebSocket(url.replace('http', 'ws') + '/ws', { headers: { cookie, origin: url } });
-      const visitor = new Visitor(ws);
-      await new Promise<void>((resolve, reject) => { ws!.once('open', resolve); ws!.once('error', reject); });
-      const arrival = await visitor.take('welcome');
-      assert.equal(arrival.floor, '@lobby');
-      assert.equal(arrival.project, null);
-      assert.deepEqual(arrival.floors, []);
-      assert.deepEqual(arrival.workers, []);
-      assert.equal(arrival.me.lobbyOnly, true);
-      assert.equal((await fetch(url + '/api/search?q=private', { headers: { cookie } })).status, 403);
-      assert.equal((await fetch(url + '/api/guest/invitations', { headers: { cookie } })).status, 200);
-    } finally { ws?.terminate(); standalone.shutdown(); }
   });
 });

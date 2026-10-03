@@ -40,7 +40,7 @@ export function createWorlds(ctx: Ctx) {
   /** The board agents waiting at the office's kiosks (the ones made at the start). */
   const officeIdle = idleAgents;
   /** The worlds built for maps of their own, by map id, with the plan each was built from (a custom map can change). */
-  const built = new Map<string, { plan: MapPlan; world: World; court: Court; idle: IdleAgent[] }>();
+  const built = new Map<string, { plan: MapPlan; world: World; court: Court | null; idle: IdleAgent[] }>();
 
   /** The world for `p`: the office, or the one its style's builder puts up for it, the first time it's wanted. */
   function worldFor(p: MapPlan): MapWorld {
@@ -60,7 +60,7 @@ export function createWorlds(ctx: Ctx) {
       scene.add(w.group);
       noOutline(w.group);
       const ground = (x: number, z: number, y: number) => Math.max(groundAt(w.colliders, x, z, y), w.dungeon?.plan.floor ?? 0);
-      b = { plan: p, world: w, court: new Court(w.group, p, w.nav, ground, (x, y, z) => ctx.sound.stepAt(x, z, y)), idle: idleAgentsIn(w) };
+      b = { plan: p, world: w, court: p.style === 'lobby' ? null : new Court(w.group, p, w.nav, ground, (x, y, z) => ctx.sound.stepAt(x, z, y)), idle: idleAgentsIn(w) };
       built.set(p.id, b);
     }
     return b;

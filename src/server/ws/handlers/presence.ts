@@ -2,6 +2,7 @@
 // their name and look, what they have open, voice and screen sharing, and chat.
 import type { ChatLine, PresenceClientMsg } from '../../../shared/protocol.js';
 import { seatHereOn } from '../../../shared/maps/index.js';
+import { planForSpace } from '../../../shared/lobby-map.js';
 import { sanitizeLook } from '../../../shared/avatar.js';
 import { isEmote } from '../../../shared/emotes.js';
 import { ROOF, isDrink } from '../../../shared/rooftop.js';
@@ -79,7 +80,7 @@ export const presenceHandlers = {
     // Everyone sees them sit down (or get up), and anyone who comes in later finds them sitting.
     // Only on a seat where they are: the roof's up on the roof, the office's on a floor.
     const key = str(msg.seat, 40);
-    const plan = ctx.maps.plan();
+    const plan = planForSpace(c.peer.floor, ctx.maps.plan());
     const deskSeatAllowed = !key.startsWith('desk-seat-') || plan.seatingById.has(key.split(':')[0]);
     const place = deskSeatAllowed ? seatHereOn(plan, key, c.peer.floor === ROOF) : undefined;
     const coworkDesk = /^desk-seat-\d+:0$/.test(key);

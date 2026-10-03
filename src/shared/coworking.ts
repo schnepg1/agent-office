@@ -1,4 +1,5 @@
 import type { CoworkZone } from './protocol/coworking.js';
+import { LOBBY_ZONES } from './lobby-map.js';
 
 /** Quiet rooms are heard only by people in the quiet zone; the talk room is heard by talk-room peers. */
 export function zoneVolume(listener: CoworkZone, speaker: CoworkZone, proximity: number): number {
@@ -12,7 +13,7 @@ export function coworkVolumeFor(listener: CoworkZone, speaker: CoworkZone, speak
 
 /** The left workstation pods are quiet; the lounge and cafe on the east side are talk spaces. */
 export function coworkZoneAt(x: number): CoworkZone {
-  return x >= 2 ? 'talk' : 'quiet';
+  return LOBBY_ZONES.find(zone => x >= zone.bounds.minX && x < zone.bounds.maxX)?.id ?? 'talk';
 }
 
 export function isCoworkZone(value: unknown): value is CoworkZone {

@@ -451,20 +451,6 @@ export interface SeatDef {
  * them there). Workers have their own seats, the desks and bean bags in SEATS.
  */
 export const SEATING: SeatDef[] = [
-  // Each built in workstation already has a visible chair; give it a human sit target so guests can
-  // work alongside the desks without hiring a worker. The back office has no chairs until expanded.
-  ...DESKS.map((d) => ({
-    id: `desk-seat-${d.id.slice(5)}`,
-    label: `Desk ${d.id.slice(5)} chair`,
-    x: d.x + Math.sin(d.rotY) * 0.85,
-    y: 0,
-    z: d.z + Math.cos(d.rotY) * 0.85,
-    rotY: d.rotY + Math.PI,
-    places: [0],
-    hips: 0.4,
-    depth: 0,
-    out: 0.85,
-  })),
   // The lounge couch, its back to the room, facing the TV.
   { id: 'couch', label: '🛋️ Couch', x: 10.5, y: 0, z: 0, rotY: Math.PI / 2, places: [-1.2, 0, 1.2], hips: 0.5, depth: -0.05, out: 0.9, tv: true },
   // Beanbags either side of the lounge, turned to the TV.

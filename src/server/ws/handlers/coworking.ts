@@ -2,6 +2,7 @@ import type { CoworkClientMsg, CoworkParticipant, ServerMsg } from '../../../sha
 import { canModerateCoworking, coworkZoneAt } from '../../../shared/coworking.js';
 import { seatHereOn } from '../../../shared/maps/index.js';
 import { LOBBY } from '../../../shared/coworking-space.js';
+import { planForSpace } from '../../../shared/lobby-map.js';
 import { isGuestClient, isGuestMuted, revokeGuestSession, setGuestMuted } from '../../access.js';
 import { coworkLobbyFor } from '../../coworking.js';
 import { throttle, type Client } from '../../office/client.js';
@@ -56,7 +57,7 @@ export const coworkHandlers = {
     if (!inLobby(c)) return;
     if (!throttle(c, 'cowork', 300)) return;
     const seat = str(msg.seat, 40);
-    const plan = ctx.maps.plan();
+    const plan = planForSpace(c.peer.floor, ctx.maps.plan());
     const place = seat && plan.seatingById.has(seat.split(':')[0]) && seatHereOn(plan, seat, false);
     if (!seat || !place || Math.hypot(place.x - c.peer.x, place.z - c.peer.z) > 4) {
       ctx.sendTo(c, { t: 'cowork.refused', text: 'That desk is not available here.' });

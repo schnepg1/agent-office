@@ -58,3 +58,7 @@ agent-office accounts [list | invite [name] [--admin] | revoke <name> | role <na
 ## Lobby-only mode
 
 `agent-office --lobby-only` (or `AGENT_OFFICE_LOBBY_ONLY=1`) starts a lightweight social lobby without discovering or opening project floors, so the host does not run project workers or execution tools. Guests join with scoped invitations; on a normal office, an admin chooses the exact floor IDs a guest may view. Keep a lobby on localhost or a private network, and use HTTPS or Tailscale for remote access. See [Coworking with guests](coworking.md) for a dedicated VPS and reverse-proxy setup.
+
+## Standalone social lobby
+
+`--lobby-only` (or `AGENT_OFFICE_LOBBY_ONLY=1`) starts only the project-independent lobby, with its own social map. Saved project floors and worker tools remain disabled. See [lobby hosting](lobby.md).

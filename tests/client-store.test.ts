@@ -130,7 +130,7 @@ const RUN: [ServerMsg, string[]][] = [
   [msg({ t: 'leaveOnMerge', state: { on: true } }), ['leaveOnMerge']],
   [msg({ t: 'chat', name: 'A', color: '#fff', text: 'hi', at: 1 }), ['chat']],
   [msg({ t: 'toast', text: 'hi', level: 'info' }), []],
-  [msg({ t: 'floor.enter', peers: [peer('p-a', { floor: 'f2' })], ...floorView('f2') }), [...FLOOR_TOPICS, 'peers']],
+  [msg({ t: 'floor.enter', peers: [peer('p-a', { floor: 'f2' })], ...floorView('f2') }), ['map', ...FLOOR_TOPICS, 'peers']],
 ];
 
 test('every message fires the topics it always has, in the same order', () => {

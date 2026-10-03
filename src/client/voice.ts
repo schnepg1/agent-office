@@ -32,6 +32,9 @@ export class Voice {
   private joining: Promise<string | null> | null = null;
   /** Push to talk is held down: letting go mutes you. */
   private talking = false;
+  private requestedMuted = false;
+  private restrictions = new Set<'quiet' | 'host'>();
+  private volumePolicy?: (peerId: string, proximity: number) => number;
   muted = false;
   localLevel = 0;
 
@@ -89,9 +92,10 @@ export class Voice {
     } catch (err) {
       return `Microphone unavailable: ${(err as Error).message}`;
     }
-    this.muted = muted;
+    this.requestedMuted = muted;
+    this.muted = muted || this.restrictions.size > 0;
     this.talking = false;
-    this.mic.getAudioTracks().forEach((t) => (t.enabled = !muted));
+    this.mic.getAudioTracks().forEach((t) => (t.enabled = !this.muted));
     this.ensureAudioCtx();
     if (this.audioCtx) {
       const src = this.audioCtx.createMediaStreamSource(this.mic);
@@ -126,15 +130,31 @@ export class Voice {
   }
 
   toggleMute() {
-    this.setMuted(!this.muted);
+    this.setMuted(!this.requestedMuted);
   }
 
   setMuted(muted: boolean) {
     if (!this.mic) return;
     this.talking = false;
-    if (muted === this.muted) return;
+    this.requestedMuted = muted;
+    this.applyMute();
+  }
+
+  /** Restrictions compose with personal mute and push-to-talk instead of overwriting their intent. */
+  setRestriction(reason: 'quiet' | 'host', restricted: boolean) {
+    if (restricted === this.restrictions.has(reason)) return;
+    if (restricted) this.restrictions.add(reason);
+    else this.restrictions.delete(reason);
+    // Removing a host restriction grants permission; it never switches the microphone on.
+    if (reason === 'host' && restricted) this.requestedMuted = true;
+    this.applyMute();
+  }
+
+  private applyMute() {
+    const muted = this.requestedMuted || this.restrictions.size > 0;
+    if (!this.mic || muted === this.muted) return;
     this.muted = muted;
-    this.mic.getAudioTracks().forEach((t) => (t.enabled = !muted));
+    this.mic.getAudioTracks().forEach((t) => (t.enabled = !this.muted));
     this.changed();
   }
 
@@ -184,9 +204,9 @@ export class Voice {
 
   /** Called whenever the set of peers changes. */
   syncPeers() {
-    // Nobody on the 2D view has voice (see PeerInfo.lite), so there's nothing to connect to.
-    for (const [id, p] of store.peers) if (id !== store.you && !p.lite && !this.conns.has(id)) this.connect(id);
-    for (const id of [...this.conns.keys()]) if (!store.peers.has(id) || store.peers.get(id)!.lite) this.drop(id);
+    const eligible = new Set([...store.peers].filter(([id, p]) => id !== store.you && !p.lite && store.onMyFloor(p)).map(([id]) => id));
+    for (const id of [...this.conns.keys()]) if (!eligible.has(id)) this.drop(id);
+    for (const id of eligible) if (!this.conns.has(id)) this.connect(id);
   }
 
   reset() {
@@ -196,10 +216,15 @@ export class Voice {
   /** Proximity voice: louder when you're close, never fully silent. */
   setVolume(peerId: string, volume: number) {
     const c = this.conns.get(peerId);
-    if (c) c.audio.volume = Math.max(0, Math.min(1, volume));
+    if (c) c.audio.volume = Math.max(0, Math.min(1, this.volumePolicy?.(peerId, volume) ?? volume));
   }
 
+  /** A social feature can filter the normal proximity mix without a second volume writer. */
+  setVolumePolicy(policy: (peerId: string, proximity: number) => number) { this.volumePolicy = policy; }
+
   async handleSignal(from: string, data: Signal) {
+    const peer = store.peers.get(from);
+    if (!peer || from === store.you || peer.lite || !store.onMyFloor(peer)) return;
     const c = this.conns.get(from) ?? this.connect(from);
     const { pc } = c;
     try {
@@ -243,6 +268,7 @@ export class Voice {
     const pc = new RTCPeerConnection({ iceServers: store.ice });
     const audio = new Audio();
     audio.autoplay = true;
+    audio.volume = 0;
     const c: Conn = { pc, polite: store.you < id, makingOffer: false, ignoreOffer: false, audio, level: 0 };
     this.conns.set(id, c);
 

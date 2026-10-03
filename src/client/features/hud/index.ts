@@ -96,7 +96,7 @@ export function installHud(ctx: Ctx, core: CoreState, parts: HudParts) {
       { id: 'guest-invites', icon: '🔗', label: 'Guest invitations', section: 'Together', shown: () => !isGuest() && store.me.admin, title: () => 'Invite guests to view selected floors', run: openGuestInvites },
       { id: 'signins', icon: '🔐', label: 'Your sign-ins', section: 'Together', shown: () => canUseProjectTools() && !!store.me.account, tone: () => (needsSigningIn() ? 'danger' : undefined), status: needsSigningIn, chip: () => 'Sign in to Claude', title: () => 'The Claude plan and GitHub account your workers run on: your own', run: () => openSignIns(net) },
       { id: 'settings', icon: '⚙️', label: 'Settings', section: 'Office', run: showSettings },
-      { id: 'help', icon: '❓', label: 'Controls', section: 'Office', key: 'H', shown: canUseProjectTools, run: openHelp },
+      { id: 'help', icon: '❓', label: 'Controls', section: 'Office', key: 'H', run: openHelp },
       { id: 'lite', icon: '📱', label: '2D view', section: 'Office', shown: canUseProjectTools, title: () => 'The workers, their terminals and the boards without the 3D: for a phone or a slow computer', run: () => location.assign('/lite') },
       {
         id: 'upgrade',
@@ -140,7 +140,7 @@ export function installHud(ctx: Ctx, core: CoreState, parts: HudParts) {
   ctx.keys.bind({
     code: 'KeyH',
     run: () => {
-      if (canUseProjectTools()) openHelp();
+      openHelp();
     },
   });
   ctx.keys.bind({

@@ -19,13 +19,18 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
   const myParticipant = () => store.coworking.participants.find((p) => p.peerId === store.you);
   let modal: ReturnType<typeof openModal> | undefined;
   let list: HTMLElement | undefined;
-  let quietAutoMute = false;
-  let restoreMute = false;
-  let changingForZone = false;
   let hostForcedMute = false;
   let zoneBadge: HTMLButtonElement | undefined;
   let areaLabel: HTMLElement | undefined;
   let peopleHeading: HTMLElement | undefined;
+  let badgeState = '';
+
+  ctx.voice.setVolumePolicy((id, proximity) => {
+    const peer = store.peers.get(id);
+    return lobby() && peer?.floor === LOBBY
+      ? coworkVolumeFor(coworkZoneAt(ctx.player.pos.x), coworkZoneAt(peer.x), peer.voice, peer.muted, proximity)
+      : proximity;
+  });
 
   function memberRow(p: CoworkParticipant): HTMLElement {
     const mine = p.peerId === store.you;
@@ -59,19 +64,7 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
 
   function syncQuietMute() {
     const quiet = lobby() && coworkZoneAt(ctx.player.pos.x) === 'quiet';
-    if (hostForcedMute) return;
-    if (quiet && ctx.voice.inVoice && !ctx.voice.muted) {
-      restoreMute = false;
-      quietAutoMute = true;
-      changingForZone = true;
-      ctx.voice.setMuted(true);
-      changingForZone = false;
-    } else if (!quiet && quietAutoMute) {
-      quietAutoMute = false;
-      changingForZone = true;
-      ctx.voice.setMuted(restoreMute);
-      changingForZone = false;
-    }
+    ctx.voice.setRestriction('quiet', quiet);
   }
 
   function updateZoneBadge() {
@@ -79,6 +72,9 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
     const label = zone === 'quiet' ? 'Quiet desks' : 'Talk café';
     if (areaLabel) areaLabel.textContent = label;
     if (!zoneBadge) return;
+    const next = `${lobby()}|${zone}|${ctx.voice.inVoice}`;
+    if (next === badgeState) return;
+    badgeState = next;
     zoneBadge.hidden = !lobby();
     zoneBadge.textContent = `${label}${zone === 'quiet' && ctx.voice.inVoice ? ' · mic muted' : ''} · Y`;
     zoneBadge.setAttribute('aria-label', `${zone === 'quiet' ? 'Quiet desk zone' : 'Talk café zone'}; press Y to open coworking`);
@@ -145,7 +141,8 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
   ctx.keys.bind({ code: 'KeyY', when: lobby, repeat: false, preventDefault: true, run: () => { show(); } });
   ctx.messages.on('welcome', () => {
     hostForcedMute = guestIsHostMuted();
-    if (hostForcedMute) ctx.voice.setMuted(true);
+    ctx.voice.setRestriction('host', hostForcedMute);
+    syncQuietMute();
     updateZoneBadge();
     if (lobby()) ctx.net.send({ t: 'cowork.sync' });
   });
@@ -157,52 +154,21 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
   ctx.messages.on('me', (m) => {
     const me = m.me as typeof m.me & { role?: string; guest?: { muted?: boolean } };
     hostForcedMute = me.role === 'guest' && me.guest?.muted === true;
-    if (hostForcedMute) ctx.voice.setMuted(true);
+    ctx.voice.setRestriction('host', hostForcedMute);
   });
-  ctx.messages.on('cowork.state', () => { refreshList(); syncQuietMute(); });
-  ctx.messages.on('cowork.update', () => { refreshList(); syncQuietMute(); });
-  ctx.messages.on('cowork.remove', refreshList);
   ctx.messages.on('cowork.refused', (m) => toast(m.text, 'warn'));
   ctx.messages.on('cowork.forceMute', (m) => {
     hostForcedMute = m.muted;
-    if (m.muted) ctx.voice.setMuted(true);
-    else ctx.net.send({ t: 'voice', voice: ctx.voice.inVoice, muted: ctx.voice.muted, sharing: false });
+    ctx.voice.setRestriction('host', m.muted);
+    if (!m.muted) ctx.net.send({ t: 'voice', voice: ctx.voice.inVoice, muted: ctx.voice.muted, sharing: false });
   });
   ctx.messages.on('cowork.saved', () => toast('Your lobby profile is updated.'));
-  ctx.messages.on('peer.update', () => {
-    // Keep guest host controls and their voice-zone tag current when presence changes.
-    if (modal) refreshList();
-  });
   store.on('coworking', () => { refreshList(); syncQuietMute(); updateZoneBadge(); });
-  ctx.voice.onChange(() => {
-    if (changingForZone) return;
-    if (hostForcedMute && !ctx.voice.muted) {
-      changingForZone = true;
-      ctx.voice.setMuted(true);
-      changingForZone = false;
-      return;
-    }
-    if (!hostForcedMute && lobby() && coworkZoneAt(ctx.player.pos.x) === 'quiet' && !ctx.voice.muted) {
-      restoreMute = false;
-      quietAutoMute = true;
-      changingForZone = true;
-      ctx.voice.setMuted(true);
-      changingForZone = false;
-    } else if (!quietAutoMute) restoreMute = ctx.voice.muted;
-  });
 
   ctx.ticks.add('others', () => {
     updateZoneBadge();
     if (!lobby()) return;
     syncQuietMute();
-    const listenerZone = coworkZoneAt(ctx.player.pos.x);
-    for (const peer of store.peers.values()) {
-      if (peer.id === store.you || peer.floor !== LOBBY || peer.lite) continue;
-      const d = Math.hypot(peer.x - ctx.player.pos.x, peer.z - ctx.player.pos.z);
-      const proximity = d < 4 ? 1 : Math.max(0.2, 1 - (d - 4) / 16);
-      const volume = coworkVolumeFor(listenerZone, coworkZoneAt(peer.x), peer.voice, peer.muted, proximity);
-      ctx.voice.setVolume(peer.id, volume);
-    }
   });
   zoneBadge = h('button.cowork-zone-badge', { type: 'button', onclick: show, hidden: true });
   $('hud').append(zoneBadge);

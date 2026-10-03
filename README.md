@@ -11,6 +11,8 @@
 
 **A 3D office your team shares with its coding agents.**
 
+The [social lobby](docs/lobby.md) has its own map and standalone hosting. [Guest invitations](docs/guest-invitations.md) and [coworking features](docs/coworking.md) build on it. See the [contribution workflow](docs/coworking-contribution-workflow.md) for the smaller PR stack.
+
 Sit **Claude Code**, **Codex**, **OpenCode**, **Grok**, **Muse** and **DeepSeek Harness** workers at desks, watch each one's terminal on the laptop in front of it,
 and jump into any of them together. Every GitHub repo is a floor of the building.
 

@@ -11,6 +11,7 @@ export function buildBoards(kit: Kit, plan: MapPlan): Record<BoardKey, THREE.Mes
   const faces = {} as Record<BoardKey, THREE.Mesh>;
   for (const k of BOARD_KEYS) {
     const bd = plan.boards[k];
+    if (!bd) continue;
     const nx = Math.sin(bd.rotY);
     const nz = Math.cos(bd.rotY);
     const g = new THREE.Group();

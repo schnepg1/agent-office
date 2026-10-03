@@ -202,7 +202,7 @@ export interface MapPlan {
   icon: string;
   description: string;
   /** 'office' is the office built in code; any other is built from `config` by its style's builder. */
-  style: 'office' | MapStyle;
+  style: 'office' | 'lobby' | MapStyle;
   config?: MapConfig;
   bounds: Bounds;
   /** How high the walls are. */
@@ -231,7 +231,7 @@ export interface MapPlan {
   tables: { x: number; z: number; length: number; width: number; rotY: number; seats: number; sides: (1 | -1)[]; name: string }[];
   /** The meeting table's middle, and which side the head of the table is on (see MapConfig.council). */
   council?: { x: number; z: number; rotY: number };
-  boards: Record<BoardKey, BoardDef>;
+  boards: Partial<Record<BoardKey, BoardDef>>;
   /** What's in the way on the floor, for walking round it (the office has its own: OFFICE_NAV). */
   obstacles?: Obstacles;
   agents: { outfit: 'peasant' | 'none'; ageMinutes: number };

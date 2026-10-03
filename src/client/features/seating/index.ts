@@ -3,7 +3,6 @@
  * does what the seat's for (the TV from the couch, Minesweeper from the boss's chair, the bar's menu).
  */
 import { seatPlace, type SeatDef, type SeatPlace } from '../../../shared/layout';
-import { LOBBY } from '../../../shared/coworking-space';
 import type { Ctx } from '../../core/context';
 import { aside, hintTitle, key, onE } from '../../core/hint';
 import { store } from '../../state';
@@ -57,7 +56,6 @@ export function installSeating(ctx: Ctx, deps: SeatingDeps) {
 
   /** E at a seat: sit down on it. Sitting there already, get up, or on the couch facing the TV, watch it. */
   function useSeat(seatId: string) {
-    if (seatId.startsWith('desk-seat-') && store.floor !== LOBBY) return;
     const seat = ctx.plan().seatingById.get(seatId);
     if (!seat) return;
     const player = ctx.player;
@@ -111,7 +109,6 @@ export function installSeating(ctx: Ctx, deps: SeatingDeps) {
     reach: 3,
     hint: (it) => {
       const seat = ctx.plan().seatingById.get(it.seatId ?? '');
-      if (seat?.id.startsWith('desk-seat-') && store.floor !== LOBBY) return { k: '', parts: [] };
       if (!seat) return { k: '', parts: [] };
       if (ctx.player.seat?.seatId === seat.id) {
         const tv = !!seat.tv && tvShowing();
