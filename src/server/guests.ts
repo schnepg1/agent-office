@@ -138,9 +138,10 @@ export class Guests {
     const now = Date.now();
     const keep = this.data.invitations.filter((v) => v.expiresAt > now);
     if (keep.length !== this.data.invitations.length) {
-      const previous = this.data.invitations;
       this.data.invitations = keep;
-      try { this.save(); } catch (err) { this.data.invitations = previous; throw err; }
+      // Expired records are already unusable on disk too. Cleanup failure must not interrupt
+      // cookie checks or a heartbeat, or keep the expired sessions alive.
+      try { this.save(); } catch { /* save logs the failure; expiration remains enforced */ }
     }
     const active = new Set(keep.map((v) => v.id));
     for (const [id, session] of this.sessions) if (!active.has(session.inviteId)) this.sessions.delete(id);

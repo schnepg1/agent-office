@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Guests } from '../src/server/guests.js';
@@ -69,4 +69,20 @@ test('invitation creation throws when its data directory disappears instead of r
     rmSync(dir, { recursive: true, force: true });
     assert.throws(() => guests.create('host', { floorIds: [] }), /ENOENT/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('expiry still denies access when pruning the invitation file cannot be saved', (t) => {
+  withGuests((guests, dir) => {
+    const now = Date.now();
+    const made = guests.create('host', { expiresAt: now + 1000 });
+    assert.notEqual(typeof made, 'string');
+    if (typeof made === 'string') return;
+    const session = guests.enter(made.token, 'Visitor');
+    assert.notEqual(typeof session, 'string');
+    if (typeof session === 'string') return;
+    mkdirSync(path.join(dir, `guest-invitations.json.${process.pid}.tmp`));
+    t.mock.method(Date, 'now', () => now + 2000);
+    assert.equal(guests.session(session.id), undefined);
+    assert.equal(guests.enter(made.token, 'Late visitor'), 'That guest invitation is invalid or expired');
+  });
 });

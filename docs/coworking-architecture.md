@@ -44,3 +44,9 @@ GPT-6 Luna agents implement server access, social features, and guest entry/host
 Use an isolated home and a separate port for verification. Do not test guest access against the host's real project credentials or publish the server as part of implementation testing.
 
 Workspace portals, public server discovery, cross-server identities, and new voice infrastructure are later phases.
+
+## Verification
+
+The integrated implementation passes type checking, the production build, the source-size guard, and 50 focused tests. HTTP/WebSocket tests exercise private snapshots and broadcasts, forged commands, selected floor visits, invitation replay/revocation, same-name seat ownership, disconnect cleanup, moderation across multiple tabs/reconnects, and standalone startup against a home with saved projects. Storage tests cover unreadable files, failed writes, and expiration during a cleanup failure.
+
+Browser review covers host invitation creation, guest entry and restricted controls, publishing intentions, host mute controls, and desktop/mobile panel layouts. The full suite still has pre-existing Windows path, CRLF fixture, and fake executable failures; the hanging fake-executable test children were stopped after reproducing the baseline behavior. No new failure names remain after the coworking store expectations were updated.

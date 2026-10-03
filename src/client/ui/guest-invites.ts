@@ -1,18 +1,10 @@
 import './guest-invites.css';
 import type { FloorInfo } from '../../shared/protocol';
+import type { GuestInvitationInfo as Invitation } from '../../shared/coworking-space';
 import { store } from '../state';
 import { h, openModal, toast } from './dom';
 import { copyButton } from './team';
 import { LOBBY } from '../shared/guest';
-
-interface Invitation {
-  id: string;
-  name?: string;
-  floorIds: string[];
-  uses?: number;
-  expiresAt?: number;
-  createdAt?: number;
-}
 
 const guestLink = (token: string) => `${location.origin}/guest#token=${encodeURIComponent(token)}`;
 const dateLabel = (at?: number) => (at ? new Date(at).toLocaleString() : 'Never expires');
@@ -46,7 +38,7 @@ export function openGuestInvites() {
     h('p.note', {}, 'Guests can see the floors you select. Leave every floor unchecked to invite someone to the lobby only. They can join conversations and walk around, but cannot use workers or change the office.'),
     form,
     status, fresh,
-    h('h4', {}, 'Open invitations'), list,
+    h('h4', {}, 'Active invitations'), list,
   );
 
   let invitations: Invitation[] = [];
@@ -57,11 +49,11 @@ export function openGuestInvites() {
       revoke.addEventListener('click', () => void remove(invitation.id));
       return h('li', {},
         h('span.name', {}, invitation.name || 'Anyone with the link'),
-        h('span.keys', {}, `${invitation.uses === 1 ? 'one visit' : 'reusable'} · ${dateLabel(invitation.expiresAt)}`),
+        h('span.keys', {}, `${invitation.usesLeft === null ? 'reusable' : invitation.usesLeft === 0 ? 'no new entries' : `${invitation.usesLeft} ${invitation.usesLeft === 1 ? 'entry' : 'entries'} left`} · ${dateLabel(invitation.expiresAt)}`),
         h('span.keys', {}, invitation.floorIds.length ? invitation.floorIds.map((id) => floorNames.get(id) ?? id).join(', ') : 'Lobby only'),
         revoke,
       );
-    }) : [h('li.empty', {}, 'No open guest invitations')]));
+    }) : [h('li.empty', {}, 'No active guest invitations')]));
   };
   const refresh = async () => {
     try {
