@@ -34,6 +34,7 @@ export class Voice {
   private talking = false;
   private requestedMuted = false;
   private restrictions = new Set<'quiet' | 'host'>();
+  private volumePolicy?: (peerId: string, proximity: number) => number;
   muted = false;
   localLevel = 0;
 
@@ -215,8 +216,11 @@ export class Voice {
   /** Proximity voice: louder when you're close, never fully silent. */
   setVolume(peerId: string, volume: number) {
     const c = this.conns.get(peerId);
-    if (c) c.audio.volume = Math.max(0, Math.min(1, volume));
+    if (c) c.audio.volume = Math.max(0, Math.min(1, this.volumePolicy?.(peerId, volume) ?? volume));
   }
+
+  /** A social feature can filter the normal proximity mix without a second volume writer. */
+  setVolumePolicy(policy: (peerId: string, proximity: number) => number) { this.volumePolicy = policy; }
 
   async handleSignal(from: string, data: Signal) {
     const peer = store.peers.get(from);

@@ -137,7 +137,7 @@ export function installPeers(ctx: Ctx, core: CoreState, parts: Pick<Parts, 'puff
         r.bubble = undefined;
       }
       const d = Math.hypot(pos.x - player.pos.x, pos.z - player.pos.z);
-      voice.setVolume(id, d < 4 ? 1 : Math.max(0.2, 1 - (d - 4) / 16));
+      voice.setVolume(id, p.voice && !p.muted ? (d < 4 ? 1 : Math.max(0.2, 1 - (d - 4) / 16)) : 0);
     }
   });
   let speakTick = 0;

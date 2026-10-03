@@ -38,6 +38,7 @@ export const HELP_ROWS: readonly (readonly [string, string])[] = [
   [IS_MAC ? '⌘K' : 'Ctrl+K', 'Command palette: type a few letters to find a worker, issue, PR, service, board, teammate or action. Enter opens it, Shift+Enter walks you over to it first'],
   ['V', 'Join voice. In voice, hold V to talk (push to talk): you’re muted once you let go. Leave voice from the ☰ menu'],
   ['M', 'Mute or unmute your mic in voice. ⚙️ Settings can have you join muted, for push to talk'],
+  ['Y', 'Open the coworking lobby: set an intention, claim a real desk chair, find teammates and see who is in the quiet desks or talk café'],
   ['Tab', 'The ☰ menu, top right: every window, and what shows on screen. Pin what you use most to the top bar'],
   ['Esc', 'Close any window and get back to looking around'],
   ['Ctrl + [', 'Send Esc to a terminal instead, to close a menu like Claude’s /skills or interrupt Claude. ⎋ Esc in the terminal’s header does the same'],

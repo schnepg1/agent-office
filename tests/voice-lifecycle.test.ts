@@ -26,6 +26,12 @@ test('visible-peer updates and floor changes reconcile voice connections', () =>
     assert.deepEqual([...voice.conns.keys()], ['old']);
     const old = voice.conns.get('old')!;
     old.audio.volume = 0.8;
+    voice.setVolumePolicy(() => 0);
+    voice.setVolume('old', 0.9);
+    assert.equal(old.audio.volume, 0, 'the normal proximity mix cannot bypass a zone restriction');
+    voice.setVolumePolicy((_id, proximity) => proximity);
+    voice.setVolume('old', 0.6);
+    assert.equal(old.audio.volume, 0.6, 'returning to an audible area restores the normal mix');
     store.peers.set('visible', { id: 'visible', floor: '@lobby' } as any);
     store.emit('peers'); assert.ok(voice.conns.has('visible'));
     store.floor = 'project'; store.peers = new Map([['private', { id: 'private', floor: 'project' } as any]]);
