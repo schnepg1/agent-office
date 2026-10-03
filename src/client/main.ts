@@ -202,6 +202,10 @@ void whoami().then(() => {
   const saved = loadProfile();
   if (saved && store.me.account) saved.name = store.me.account.name;
   if (store.me.account) store.profile.name = store.me.account.name;
+  if (store.me.guest?.name) {
+    if (saved) saved.name = store.me.guest.name;
+    store.profile.name = store.me.guest.name;
+  }
   store.emit('me');
   if (saved?.look) {
     store.profile = { ...saved, look: saved.look };
