@@ -58,5 +58,15 @@ test('reusable invitation labels do not override visitor names and mute applies 
     assert.equal(guests.session(sameName.id), undefined);
     assert.deepEqual(guests.list(), []);
     assert.equal(guests.enter(made.token, 'Mina'), 'That guest invitation is invalid or expired');
+    assert.throws(() => guests.create('host', { floorIds: [] }), /invitations are unavailable/);
   });
+});
+
+test('invitation creation throws when its data directory disappears instead of returning a token', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'agent-office-guests-write-'));
+  try {
+    const guests = new Guests(dir);
+    rmSync(dir, { recursive: true, force: true });
+    assert.throws(() => guests.create('host', { floorIds: [] }), /ENOENT/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

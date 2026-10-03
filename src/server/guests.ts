@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { GuestInfo, GuestInvitationInfo } from '../shared/coworking-space.js';
 import { cleanName } from './accounts.js';
@@ -43,6 +43,7 @@ export class Guests {
 
   create(by: string, input: NewGuestInvitation): { token: string; invitation: GuestInvitationInfo } | string {
     this.sync(); this.expire();
+    if (this.unreadable) throw new Error(`Guest invitations are unavailable because ${this.file} could not be read`);
     if (this.data.invitations.length >= MAX_INVITES) return 'Too many active guest invitations';
     const name = input.name === undefined ? undefined : cleanName(input.name);
     if (input.name !== undefined && !name) return 'That name has no letters in it';
@@ -58,7 +59,8 @@ export class Guests {
       id: randomBytes(8).toString('hex'), tokenHash: hash(token).toString('hex'),
       ...(name ? { name } : {}), floorIds, uses, usesLeft: uses, expiresAt, createdAt: now, createdBy: by,
     };
-    this.data.invitations.push(saved); this.save();
+    this.data.invitations.push(saved);
+    try { this.save(); } catch (err) { this.data.invitations.pop(); throw err; }
     return { token, invitation: this.info(saved) };
   }
 
@@ -70,12 +72,14 @@ export class Guests {
 
   revoke(id: string): string[] | undefined {
     this.sync();
+    if (this.unreadable) throw new Error(`Guest invitations are unavailable because ${this.file} could not be read`);
     const before = this.data.invitations.length;
+    const previous = this.data.invitations;
     this.data.invitations = this.data.invitations.filter((v) => v.id !== id);
     if (before === this.data.invitations.length) return undefined;
     const revoked = [...this.sessions.values()].filter((s) => s.inviteId === id).map((s) => s.id);
+    try { this.save(); } catch (err) { this.data.invitations = previous; throw err; }
     for (const sessionId of revoked) this.sessions.delete(sessionId);
-    this.save();
     return revoked;
   }
 
@@ -91,7 +95,11 @@ export class Guests {
     const name = cleanName(requestedName);
     if (!name) return 'Pick a name';
     if (this.sessions.size >= MAX_SESSIONS || [...this.sessions.values()].filter((s) => s.inviteId === invite.id).length >= MAX_SESSIONS_PER_INVITE) return 'This guest invitation has reached its session limit';
-    if (invite.usesLeft !== null) { invite.usesLeft--; this.save(); }
+    if (invite.usesLeft !== null) {
+      const previousUses = invite.usesLeft;
+      invite.usesLeft--;
+      try { this.save(); } catch (err) { invite.usesLeft = previousUses; throw err; }
+    }
     const session: GuestSession = {
       id: randomBytes(24).toString('base64url'), inviteId: invite.id, expiresAt: Math.min(invite.expiresAt, Date.now() + MAX_TTL),
       info: { name, lobby: true, floorIds: [...invite.floorIds] },
@@ -129,7 +137,11 @@ export class Guests {
   private expire() {
     const now = Date.now();
     const keep = this.data.invitations.filter((v) => v.expiresAt > now);
-    if (keep.length !== this.data.invitations.length) { this.data.invitations = keep; this.save(); }
+    if (keep.length !== this.data.invitations.length) {
+      const previous = this.data.invitations;
+      this.data.invitations = keep;
+      try { this.save(); } catch (err) { this.data.invitations = previous; throw err; }
+    }
     const active = new Set(keep.map((v) => v.id));
     for (const [id, session] of this.sessions) if (!active.has(session.inviteId)) this.sessions.delete(id);
   }
@@ -139,7 +151,7 @@ export class Guests {
     try { const s = statSync(this.file); stamp = `${s.mtimeMs}:${s.size}`; } catch { /* first run */ }
     if (stamp === this.stamp) return;
     this.stamp = stamp;
-    if (!stamp) { this.data = { invitations: [] }; this.unreadable = false; return; }
+    if (!stamp) { this.data = { invitations: [] }; this.sessions.clear(); this.unreadable = false; return; }
     try {
       const parsed = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<Saved>;
       this.data = { invitations: Array.isArray(parsed.invitations) ? parsed.invitations.filter((v) => v && typeof v.id === 'string' && typeof v.tokenHash === 'string' && Array.isArray(v.floorIds)) : [] };
@@ -152,10 +164,14 @@ export class Guests {
     }
   }
   private save() {
-    if (this.unreadable) return;
+    if (this.unreadable) throw new Error(`Guest invitations are unavailable because ${this.file} could not be read`);
     const tmp = `${this.file}.${process.pid}.tmp`;
     try { writeFileSync(tmp, JSON.stringify(this.data, null, 2), { mode: 0o600 }); renameSync(tmp, this.file); }
-    catch (err) { console.error(`agent-office: couldn't save ${this.file}: ${(err as Error).message}`); return; }
+    catch (err) {
+      try { rmSync(tmp, { force: true }); } catch { /* keep the original write error */ }
+      console.error(`agent-office: couldn't save ${this.file}: ${(err as Error).message}`);
+      throw err;
+    }
     try { const s = statSync(this.file); this.stamp = `${s.mtimeMs}:${s.size}`; } catch { this.stamp = ''; }
   }
 }
