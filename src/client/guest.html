@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Agent Office · Guest entry</title>
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="stylesheet" href="./login.css" />
+  </head>
+  <body>
+    <main class="card">
+      <div class="logo" aria-hidden="true">🏢</div>
+      <h1>Come on in</h1>
+      <p class="sub" id="sub">A host invited you to visit their office.</p>
+      <form id="form">
+        <label>Your name<input id="name" type="text" maxlength="24" autocomplete="name" spellcheck="false" required /></label>
+        <button type="submit" id="submit">Join quietly</button>
+        <p id="error" class="error" role="alert"></p>
+      </form>
+      <p class="note">Guests can view the floors chosen by their host. You can look around and talk, but cannot start or control workers.</p>
+    </main>
+    <script type="module" src="./guest.ts"></script>
+  </body>
+</html>

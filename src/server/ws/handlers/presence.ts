@@ -2,16 +2,22 @@
 // their name and look, what they have open, voice and screen sharing, and chat.
 import type { ChatLine, PresenceClientMsg } from '../../../shared/protocol.js';
 import { seatHereOn } from '../../../shared/maps/index.js';
+import { planForSpace } from '../../../shared/lobby-map.js';
 import { sanitizeLook } from '../../../shared/avatar.js';
 import { isEmote } from '../../../shared/emotes.js';
 import { ROOF, isDrink } from '../../../shared/rooftop.js';
 import { isBarGame } from '../../../shared/bargames.js';
 import { throttle } from '../../office/client.js';
+import { coworkLobbyFor } from '../../coworking.js';
+import { coworkZoneAt } from '../../../shared/coworking.js';
+import { LOBBY } from '../../../shared/coworking-space.js';
 import { COLOR_RE, issueNumber, num, str } from '../../office/input.js';
 import type { HandlerMap } from './types.js';
+import { isGuestClient, isGuestMuted } from '../../access.js';
 
 export const presenceHandlers = {
   move(ctx, c, msg) {
+    const cowork = coworkLobbyFor(ctx);
     const p = c.peer;
     p.x = num(msg.x);
     p.y = num(msg.y);
@@ -19,6 +25,15 @@ export const presenceHandlers = {
     p.rotY = num(msg.rotY);
     p.moving = !!msg.moving;
     ctx.toNeighbors(c, { t: 'peer.move', id: c.id, x: p.x, y: p.y, z: p.z, rotY: p.rotY, moving: p.moving }, true);
+    if (p.floor === LOBBY) {
+      const participant = cowork.participants.get(c.id);
+      const zone = coworkZoneAt(p.x);
+      if (participant && participant.zone !== zone) {
+        participant.zone = zone;
+        ctx.toNeighbors(c, { t: 'cowork.update', participant });
+        ctx.sendTo(c, { t: 'cowork.update', participant });
+      }
+    }
   },
   act(ctx, c, msg) {
     if (msg.drink !== undefined) {
@@ -61,21 +76,52 @@ export const presenceHandlers = {
     if (isEmote(msg.emote) && c.emotes.take(Date.now())) ctx.toNeighbors(c, { t: 'peer.emote', id: c.id, emote: msg.emote }, true);
   },
   sit(ctx, c, msg) {
+    const cowork = coworkLobbyFor(ctx);
     // Everyone sees them sit down (or get up), and anyone who comes in later finds them sitting.
     // Only on a seat where they are: the roof's up on the roof, the office's on a floor.
     const key = str(msg.seat, 40);
-    const seat = seatHereOn(ctx.maps.plan(), key, c.peer.floor === ROOF) ? key : undefined;
+    const plan = planForSpace(c.peer.floor, ctx.maps.plan());
+    const deskSeatAllowed = !key.startsWith('desk-seat-') || plan.seatingById.has(key.split(':')[0]);
+    const place = deskSeatAllowed ? seatHereOn(plan, key, c.peer.floor === ROOF) : undefined;
+    const coworkDesk = /^desk-seat-\d+:0$/.test(key);
+    const closeEnough = place && Math.hypot(place.x - c.peer.x, place.z - c.peer.z) <= 4;
+    const seat = place && (!coworkDesk || (c.peer.floor === LOBBY && closeEnough)) ? key : undefined;
     if (seat === c.peer.seat) return;
     // Somebody on the floor got there first (two people arriving at an empty throne at once).
     // (Not yourself, on a connection that hasn't timed out yet after a reconnect.)
     const same = (o: typeof c) => o.peer.name === c.peer.name || (!!o.accountId && o.accountId === c.accountId);
     const there = seat && [...ctx.clients.values()].find((o) => o !== c && !same(o) && o.peer.seat === seat && o.peer.floor === c.peer.floor);
-    if (there) {
-      ctx.sendTo(c, { t: 'sit.refused', seat: key, by: there.peer.name });
+    const claimedBy = c.peer.floor === LOBBY && seat ? cowork.claims.get(seat) : undefined;
+    if (there || (claimedBy && claimedBy !== c.id)) {
+      const owner = claimedBy ? cowork.participants.get(claimedBy)?.name : undefined;
+      const personThere = there ? there.peer.name : undefined;
+      ctx.sendTo(c, { t: 'sit.refused', seat: key, by: personThere ?? owner ?? 'someone' });
       return;
     }
-    if (seat) c.peer.seat = seat;
+    if (seat) {
+      c.peer.seat = seat;
+      c.peer.x = place!.x;
+      c.peer.y = place!.y;
+      c.peer.z = place!.z;
+      c.peer.rotY = place!.rotY;
+      c.peer.moving = false;
+    }
     else delete c.peer.seat;
+    if (c.peer.floor === LOBBY) {
+      if (seat) cowork.claim(c.id, c.peer.name, seat);
+      else cowork.release(c.id);
+      const participant = cowork.upsert(c.id, c.peer.name);
+      participant.seat = seat;
+      participant.zone = coworkZoneAt(c.peer.x);
+      participant.guest = isGuestClient(c);
+      participant.hostMuted = isGuestMuted(c);
+      const update = { t: 'cowork.update' as const, participant };
+      const state = { t: 'cowork.state' as const, state: cowork.snapshot('@lobby') };
+      ctx.toNeighbors(c, update);
+      ctx.sendTo(c, update);
+      ctx.toNeighbors(c, state);
+      ctx.sendTo(c, state);
+    }
     ctx.broadcast({ t: 'peer.update', peer: c.peer }, c.id);
   },
   carry(ctx, c, msg) {
@@ -94,20 +140,32 @@ export const presenceHandlers = {
     ctx.broadcast({ t: 'peer.update', peer: c.peer });
   },
   voice(ctx, c, msg) {
-    c.peer.voice = !!msg.voice;
-    c.peer.muted = !!msg.muted;
-    c.peer.sharing = !!msg.sharing;
+    c.peer.voice = isGuestMuted(c) ? false : !!msg.voice;
+    c.peer.muted = isGuestMuted(c) || !!msg.muted;
+    c.peer.sharing = isGuestClient(c) ? false : !!msg.sharing;
     ctx.broadcast({ t: 'peer.update', peer: c.peer });
+    if (c.peer.floor === LOBBY) {
+      const lobby = coworkLobbyFor(ctx);
+      const participant = lobby.upsert(c.id, c.peer.name);
+        participant.muted = c.peer.muted;
+        participant.hostMuted = isGuestMuted(c);
+      participant.guest = isGuestClient(c);
+      participant.zone = coworkZoneAt(c.peer.x);
+      participant.seat = c.peer.seat;
+      const update = { t: 'cowork.update' as const, participant };
+      ctx.toNeighbors(c, update);
+      ctx.sendTo(c, update);
+    }
   },
   rtc(ctx, c, msg) {
     const target = ctx.clients.get(str(msg.to, 32));
-    if (target) ctx.sendTo(target, { t: 'rtc', from: c.id, data: msg.data });
+    if (target && target.peer.floor === c.peer.floor && !(isGuestClient(c) && isGuestMuted(c))) ctx.sendTo(target, { t: 'rtc', from: c.id, data: msg.data });
   },
   chat(ctx, c, msg) {
     const who = c.peer.name;
     const text = str(msg.text, 500).trim();
     if (!text) return;
-    const line: ChatLine = { from: c.id, name: who, color: c.peer.color, text, at: Date.now(), ...(c.accountId ? { account: true } : {}) };
+    const line: ChatLine = { from: c.id, name: who, color: c.peer.color, text, at: Date.now(), ...(c.accountId ? { account: true } : {}), ...(c.peer.floor ? { floor: c.peer.floor } : {}) };
     ctx.chat.add(line);
     ctx.broadcast({ t: 'chat', ...line });
   },

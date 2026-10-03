@@ -99,3 +99,5 @@ WantedBy=multi-user.target
 If you don't have a domain, `--self-signed` serves HTTPS directly. Browsers will warn once per person.
 
 **Voice across strict NATs.** Peers connect directly using public STUN. If some teammates can't hear each other (common on corporate networks), run a TURN server such as coturn and pass `--turn turn:user:pass@turn.example.com:3478`.
+
+**Guest lobby.** Start `agent-office --lobby-only` to host the shared lobby without loading project floors or worker tools. A host can create invitations from the lobby; each grants lobby access and may include selected floors for read-only social presence. Revoking a guest session disconnects that session. If its invitation is still valid and reusable, the guest can enter again as a new session; a single-use invitation cannot be reused after entry. Mute and kick apply to the session, not to a display name.

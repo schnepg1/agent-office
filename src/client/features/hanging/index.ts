@@ -8,6 +8,7 @@ import { Hanger } from './controller';
 import { store } from '../../state';
 import { h, toast } from '../../ui/dom';
 import type { Gallery } from './world';
+import { isGuest } from '../../shared/guest';
 
 // The kinds of thing you can use that this defines (see InteractKinds in world/types.ts).
 declare module '../../world/types' {
@@ -92,6 +93,7 @@ export function installHanging(ctx: Ctx, deps: HangingDeps) {
 
   /** F: hang a picture on a wall of this floor. There are no walls for them up on the roof. */
   function startHanging() {
+    if (isGuest()) return;
     if (ctx.upTop()) return toast('No walls to hang pictures on up here — take the elevator down to a floor', 'warn');
     if (!ctx.inOffice()) return toast(`${ctx.plan().icon} ${ctx.plan().name}'s walls are hung already — pictures go up in the office`, 'warn');
     hanger.start();

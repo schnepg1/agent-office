@@ -5,6 +5,7 @@
 import type { Config } from '../config.js';
 import type { Auth } from '../auth.js';
 import type { Accounts } from '../accounts.js';
+import type { Guests } from '../guests.js';
 import type { SignIns, GhAs } from '../signins.js';
 import type { GrokModelCatalogue, OpenCodeModelCatalogue } from '../models.js';
 import type { Tailnet } from '../tailnet.js';
@@ -26,6 +27,7 @@ import type { LeaveOnMerge } from '../leave-on-merge.js';
 import type { ChatLog } from '../history.js';
 import type { Arcade, HighScores } from '../cabinet.js';
 import type { FloorInfo, Me, ServerMsg, ServiceInfo, ServicesState, SignInKind } from '../../shared/protocol.js';
+import type { GuestInfo } from '../../shared/coworking-space.js';
 import type { Client } from './client.js';
 import type { Spot } from './input.js';
 
@@ -37,6 +39,7 @@ export interface Core {
   /** The client bundle the office serves. */
   publicDir: string;
   accounts: Accounts;
+  guests: Guests;
   auth: Auth;
   /** Everyone in the office, by connection. */
   clients: Map<string, Client>;
@@ -128,7 +131,7 @@ export interface FloorHelpers {
 /** Who's signed in (office/people.ts). */
 export interface People {
   /** Who a connection is: its account's current name and role, or an admin guest on the shared password. */
-  meOf(accountId: string | undefined): Me;
+  meOf(accountId: string | undefined, guest?: GuestInfo): Me;
   /** Still signed in: the account wasn't revoked, and the shared password wasn't switched off. */
   stillIn(c: Client): boolean;
   signOut(c: Client): void;

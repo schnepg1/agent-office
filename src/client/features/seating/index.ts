@@ -123,5 +123,5 @@ export function installSeating(ctx: Ctx, deps: SeatingDeps) {
     }),
   });
 
-  return { freePlace, standUp, mySeat };
+  return { freePlace, standUp, mySeat, sitAt: useSeat };
 }

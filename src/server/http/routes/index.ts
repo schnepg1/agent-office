@@ -6,6 +6,7 @@ import { agentRoutes } from './agents.js';
 import { authRoutes } from './auth.js';
 import { fileRoutes } from './files.js';
 import { githubRoutes } from './github.js';
+import { guestRoutes } from './guests.js';
 import { pageRoutes } from './pages.js';
 import { searchRoutes } from './search.js';
 
@@ -18,14 +19,21 @@ export const routes: readonly Route[] = [
   authRoutes.claim,
   authRoutes.link,
   authRoutes.logout,
+  guestRoutes.enter,
   pageRoutes.health,
   pageRoutes.assets,
   pageRoutes.login,
   pageRoutes.claim,
   pageRoutes.join,
+  pageRoutes.guest,
   pageRoutes.favicon,
   // Signed in.
   authRoutes.whoami,
+  guestRoutes.list,
+  guestRoutes.create,
+  guestRoutes.revoke,
+  guestRoutes.sessions,
+  guestRoutes.revokeSession,
   agentRoutes.openCodeModels,
   agentRoutes.grokModels,
   fileRoutes.image,

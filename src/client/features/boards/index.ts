@@ -17,6 +17,7 @@ import { BoardTexture, QueueBoardTexture, ServicesBoardTexture } from './world';
 import { MachineTexture } from './machine';
 import { MeetingBoardTexture, MeetingSignTexture } from './meeting';
 import type { World } from '../../world/world';
+import { canUseProjectTools } from '../../shared/guest';
 
 // The kinds of thing you can use that this defines (see InteractKinds in world/types.ts).
 declare module '../../world/types' {
@@ -48,7 +49,8 @@ export function installBoards(ctx: Ctx, deps: BoardsDeps) {
     for (const topic of topics) store.on(topic, render);
     render();
   }
-  function showOn(mesh: THREE.Mesh, texture: THREE.Texture) {
+  function showOn(mesh: THREE.Mesh | undefined, texture: THREE.Texture) {
+    if (!mesh) return;
     const mat = mesh.material as THREE.MeshBasicMaterial;
     if (mat.map === texture) return;
     mat.map = texture;
@@ -100,11 +102,13 @@ export function installBoards(ctx: Ctx, deps: BoardsDeps) {
   ctx.interactions.define('issues', {
     reach: 9,
     hint: () => {
+      if (!canUseProjectTools()) return { k: '', parts: [] };
       const aimedNote = deps.aimedNote();
       if (aimedNote) return { k: String(aimedNote.number), parts: [hintTitle(clip(`📌 #${aimedNote.number} ${aimedNote.title}`, 60)), key('E', 'Take it'), key('O', 'Read it')] };
       return issuesTex.hasNotes ? { k: 'notes', parts: [hintTitle('📌 Issues board'), key('E', 'Open'), aside('or point at a note to take it')] } : boardHint('📌 Issues board');
     },
     use: (_it, key, note) => {
+      if (!canUseProjectTools()) return;
       // A note on the issues board: E takes it straight off the cork, O opens it to read first.
       if (note && key === 'E') return deps.pickUp(note);
       if (note && key === 'O') return openIssue(note, ctx.net, deps.boardActions());
@@ -113,21 +117,22 @@ export function installBoards(ctx: Ctx, deps: BoardsDeps) {
   });
   ctx.interactions.define('pulls', {
     reach: 9,
-    hint: () => boardHint('🔀 Pull request board'),
-    use: onE(() => openBoard('pulls', ctx.net, deps.boardActions())),
+    hint: () => !canUseProjectTools() ? { k: '', parts: [] } : boardHint('🔀 Pull request board'),
+    use: onE(() => { if (canUseProjectTools()) openBoard('pulls', ctx.net, deps.boardActions()); }),
   });
   ctx.interactions.define('services', {
     reach: 9,
-    hint: () => boardHint('🌐 Services board'),
-    use: onE(() => openServices()),
+    hint: () => !canUseProjectTools() ? { k: '', parts: [] } : boardHint('🌐 Services board'),
+    use: onE(() => { if (canUseProjectTools()) openServices(); }),
   });
   ctx.interactions.define('queue', {
     reach: 9,
     hint: () => {
+      if (!canUseProjectTools()) return { k: '', parts: [] };
       const n = store.queue.tasks.filter((t) => t.status !== 'done').length;
       return { k: String(n), parts: [hintTitle(`📋 Task queue${n ? ` · ${n}` : ''}`), key('E', 'Open')] };
     },
-    use: onE(() => deps.showQueue()),
+    use: onE(() => { if (canUseProjectTools()) deps.showQueue(); }),
   });
   // The machine monitor on the west wall.
   const machineTex = new MachineTexture();

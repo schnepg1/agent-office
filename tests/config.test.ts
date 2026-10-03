@@ -50,3 +50,8 @@ test('--no-open leaves the browser alone', (t) => {
   assert.equal(load(t).open, true);
   assert.equal(load(t, '--no-open').open, false);
 });
+
+test('--lobby-only starts without opening project floors', (t) => {
+  assert.equal(load(t, '--lobby-only').lobbyOnly, true);
+  assert.equal(load(t).lobbyOnly, false);
+});

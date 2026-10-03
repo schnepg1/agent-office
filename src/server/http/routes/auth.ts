@@ -109,6 +109,13 @@ export const authRoutes = {
       return send(res, 200, { ok: true }, signedIn(ctx, req));
     },
   },
-  logout: { method: 'POST', path: '/api/logout', auth: 'public', handle: (ctx, { req, res }) => send(res, 200, { ok: true }, { 'set-cookie': ctx.auth.clearCookie(req) }) },
-  whoami: { path: '/api/whoami', auth: 'session', handle: (ctx, { res, session }) => send(res, 200, { ok: true, me: ctx.meOf(session.account?.id) }) },
+  logout: { method: 'POST', path: '/api/logout', auth: 'public', handle: (ctx, { req, res }) => {
+    const session = ctx.auth.fromRequest(req);
+    if (session?.guestId) {
+      ctx.guests.revokeSession(session.guestId);
+      for (const client of ctx.clients.values()) if (client.guestId === session.guestId) { client.out = true; client.ws.close(4003, 'Guest signed out'); }
+    }
+    return send(res, 200, { ok: true }, { 'set-cookie': ctx.auth.clearCookie(req) });
+  } },
+  whoami: { path: '/api/whoami', auth: 'session', guest: true, lobbyOnly: true, handle: (ctx, { res, session }) => send(res, 200, { ok: true, me: ctx.meOf(session.account?.id, session.guest) }) },
 } satisfies Record<string, Route>;

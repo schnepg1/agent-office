@@ -12,6 +12,14 @@ export interface Client {
   peer: PeerInfo;
   /** Signed in with this account; none means the shared office password. */
   accountId?: string;
+  /** Scoped guest invitation registry ID. Guests have no account or shared-password privileges. */
+  guestId?: string;
+  guestName?: string;
+  guestFloorIds?: string[];
+  guestMuted?: boolean;
+  visiblePeers: Set<string>;
+  setGuestMuted?: (muted: boolean) => void;
+  revokeGuestSession?: () => void;
   /** Whether this person was last told they're an admin (see `me`). */
   admin: boolean;
   /** Signed out while connected; whatever it still sends is dropped until the socket closes. */
@@ -30,11 +38,15 @@ export interface Client {
 }
 
 /** A client that just connected, with nothing going on yet. */
-export function newClient(id: string, ws: WebSocket, who: { accountId: string | undefined; admin: boolean }, peer: PeerInfo): Client {
+export function newClient(id: string, ws: WebSocket, who: { accountId: string | undefined; admin: boolean; guestId?: string; guestName?: string; guestFloorIds?: string[] }, peer: PeerInfo): Client {
   return {
     id,
     ws,
     accountId: who.accountId,
+    guestId: who.guestId,
+    guestName: who.guestName,
+    guestFloorIds: who.guestFloorIds,
+    visiblePeers: new Set(),
     admin: who.admin,
     attached: new Set(),
     stale: new Set(),

@@ -24,6 +24,7 @@ import { routeWhiteboardMessage } from '../features/whiteboard/ui';
 import type { Ctx } from './context';
 import type { CoreState } from './ctx';
 import { builtFloors, pastTheWing } from './floors';
+import { canUseProjectTools, LOBBY, isGuest } from '../shared/guest';
 import type { Parts } from './parts';
 
 export type ArrivalParts = Pick<Parts, 'worlds' | 'place' | 'travel' | 'maps' | 'views' | 'cards' | 'hoops' | 'bar' | 'golf' | 'bargames' | 'cars' | 'focus'>;
@@ -117,9 +118,9 @@ export function installArrival(ctx: Ctx, core: CoreState, parts: ArrivalParts) {
     // After a reconnect the server has forgotten which terminal we had open, and what we're doing.
     parts.focus.sendDoing(true);
     const openId = openTerminalFor();
-    if (openId && store.workers.has(openId)) net.send({ t: 'worker.attach', workerId: openId });
+    if (canUseProjectTools() && openId && store.workers.has(openId)) net.send({ t: 'worker.attach', workerId: openId });
     const watching = openChangesFor();
-    if (watching && store.workers.has(watching.workerId)) net.send({ t: 'changes.watch', ...watching });
+    if (canUseProjectTools() && watching && store.workers.has(watching.workerId)) net.send({ t: 'changes.watch', ...watching });
     renderProject();
     ctx.hud.refresh();
     // Back from a restart on another version: this page's code is stale, so load the new one.
@@ -154,18 +155,18 @@ export function installArrival(ctx: Ctx, core: CoreState, parts: ArrivalParts) {
   });
   ctx.messages.on('signins', () => {
     // Someone who just joined starts here: their workers need their own Claude sign-in first.
-    if (!signInsGreeted) {
+    if (!signInsGreeted && canUseProjectTools()) {
       signInsGreeted = true;
       if (needsSigningIn()) openSignIns(net, 'Welcome! Sign in to Claude so the workers you hire run on your own plan, and to GitHub so what you do on the boards is yours.');
     }
   });
-  ctx.messages.on('signins.needed', (msg) => openSignIns(net, msg.why));
+  ctx.messages.on('signins.needed', (msg) => { if (canUseProjectTools()) openSignIns(net, msg.why); });
   ctx.messages.on('toast', (msg) => toast(msg.text, msg.level));
 
   function renderUpgrade() {
     const u = store.upgrade;
     const banner = $('upgrade-banner');
-    banner.classList.toggle('hidden', u.phase !== 'building');
+    banner.classList.toggle('hidden', !canUseProjectTools() || u.phase !== 'building');
     banner.textContent = `🛠️ ${u.by ?? 'Someone'} is upgrading the office. It restarts on the new version in a minute or two.`;
   }
   store.on('upgrade', renderUpgrade);
@@ -186,11 +187,12 @@ export function installArrival(ctx: Ctx, core: CoreState, parts: ArrivalParts) {
       return;
     }
     if (!p) {
-      $('project-name').textContent = '🏢 Agent Office';
-      $('project-meta').textContent = store.floors.length ? '🛗 Take the elevator to a floor' : '🛗 No floors yet — add a project in the elevator';
+      const lobby = store.floor === LOBBY || !!store.me.lobbyOnly || isGuest();
+      $('project-name').textContent = lobby ? '🏢 Coworking lobby' : '🏢 Agent Office';
+      $('project-meta').textContent = store.me.lobbyOnly ? 'A shared space for focused work' : isGuest() ? 'Choose an invited floor' : store.floor === LOBBY ? 'Choose a project floor' : store.floors.length ? '🛗 Take the elevator to a floor' : '🛗 No floors yet — add a project in the elevator';
       // Where to go next, so it shows even with the floor details turned off.
       $('project-meta').classList.add('lobby');
-      ctx.world().setProjectName(store.floors.length ? 'Pick a floor' : 'Lobby');
+      ctx.world().setProjectName(lobby ? 'Coworking lobby' : store.floors.length ? 'Pick a floor' : 'Lobby');
       return;
     }
     const n = store.floors.findIndex((f) => f.id === store.floor);
