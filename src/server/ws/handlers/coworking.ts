@@ -2,7 +2,7 @@ import type { CoworkClientMsg, CoworkParticipant, ServerMsg } from '../../../sha
 import { canModerateCoworking, coworkZoneAt } from '../../../shared/coworking.js';
 import { seatHereOn } from '../../../shared/maps/index.js';
 import { LOBBY } from '../../../shared/coworking-space.js';
-import { isGuestClient, revokeGuestSession, setGuestMuted } from '../../access.js';
+import { isGuestClient, isGuestMuted, revokeGuestSession, setGuestMuted } from '../../access.js';
 import { coworkLobbyFor } from '../../coworking.js';
 import { throttle, type Client } from '../../office/client.js';
 import { str } from '../../office/input.js';
@@ -18,6 +18,7 @@ function broadcast(ctx: Parameters<HandlerMap<CoworkClientMsg>['cowork.sync']>[0
 function getParticipant(ctx: Parameters<HandlerMap<CoworkClientMsg>['cowork.sync']>[0], c: Client): CoworkParticipant {
   const p = coworkLobbyFor(ctx).upsert(c.id, c.peer.name);
   p.muted = c.peer.muted;
+  p.hostMuted = isGuestMuted(c);
   p.account = c.accountId ? true : undefined;
   p.guest = isGuestClient(c);
   p.seat = c.peer.seat;
@@ -127,7 +128,6 @@ export const coworkHandlers = {
     const muted = msg.action === 'mute';
     for (const peer of guestPeers) {
       setGuestMuted(peer, muted);
-      peer.peer.muted = muted;
       ctx.toNeighbors(peer, { t: 'peer.update', peer: peer.peer });
       ctx.sendTo(peer, { t: 'peer.update', peer: peer.peer });
       ctx.sendTo(peer, { t: 'cowork.forceMute', muted });

@@ -33,7 +33,7 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
     const status = p.status ? h('span.cowork-status', {}, p.status) : null;
     const controls: HTMLElement[] = [];
     if (!mine && store.me.admin && p.guest) {
-      controls.push(h('button.btn.subtle', { type: 'button', onclick: () => ctx.net.send({ t: 'cowork.moderate', peerId: p.peerId, action: p.muted ? 'unmute' : 'mute' }) }, p.muted ? 'Unmute' : 'Mute'));
+      controls.push(h('button.btn.subtle', { type: 'button', onclick: () => ctx.net.send({ t: 'cowork.moderate', peerId: p.peerId, action: p.hostMuted ? 'unmute' : 'mute' }) }, p.hostMuted ? 'Unmute' : 'Mute'));
       controls.push(h('button.btn.danger', { type: 'button', onclick: () => ctx.net.send({ t: 'cowork.moderate', peerId: p.peerId, action: 'kick' }) }, 'Remove'));
     }
     return h('article.cowork-person', {},
@@ -41,7 +41,7 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
         h('span.cowork-zone', {}, p.zone === 'quiet' ? 'Quiet room' : 'Talk café'),
         p.seat ? h('span.cowork-seat', {}, seatName(p.seat)) : null,
         status,
-        p.muted ? h('span.cowork-muted', {}, 'Muted') : null,
+        p.muted ? h('span.cowork-muted', {}, p.hostMuted ? 'Host muted' : 'Muted') : null,
       )),
       intent,
       mine ? h('small', {}, 'You') : null,
@@ -151,6 +151,7 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
   });
   ctx.messages.on('floor.enter', (m) => {
     updateZoneBadge();
+    syncQuietMute();
     if (m.floor === LOBBY) ctx.net.send({ t: 'cowork.sync' });
   });
   ctx.messages.on('me', (m) => {
@@ -165,6 +166,7 @@ export function installCoworking(ctx: Ctx, seating: { sitAt(seatId: string): voi
   ctx.messages.on('cowork.forceMute', (m) => {
     hostForcedMute = m.muted;
     if (m.muted) ctx.voice.setMuted(true);
+    else ctx.net.send({ t: 'voice', voice: ctx.voice.inVoice, muted: ctx.voice.muted, sharing: false });
   });
   ctx.messages.on('cowork.saved', () => toast('Your lobby profile is updated.'));
   ctx.messages.on('peer.update', () => {

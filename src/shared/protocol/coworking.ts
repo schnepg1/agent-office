@@ -9,6 +9,8 @@ export interface CoworkParticipant {
   zone: CoworkZone;
   seat?: string;
   muted: boolean;
+  /** A host restriction, separate from the participant muting their own microphone. */
+  hostMuted?: boolean;
   account?: boolean;
   guest?: boolean;
 }

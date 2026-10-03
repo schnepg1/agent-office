@@ -113,6 +113,7 @@ export const presenceHandlers = {
       participant.seat = seat;
       participant.zone = coworkZoneAt(c.peer.x);
       participant.guest = isGuestClient(c);
+      participant.hostMuted = isGuestMuted(c);
       const update = { t: 'cowork.update' as const, participant };
       const state = { t: 'cowork.state' as const, state: cowork.snapshot('@lobby') };
       ctx.toNeighbors(c, update);
@@ -145,7 +146,8 @@ export const presenceHandlers = {
     if (c.peer.floor === LOBBY) {
       const lobby = coworkLobbyFor(ctx);
       const participant = lobby.upsert(c.id, c.peer.name);
-      participant.muted = c.peer.muted;
+        participant.muted = c.peer.muted;
+        participant.hostMuted = isGuestMuted(c);
       participant.guest = isGuestClient(c);
       participant.zone = coworkZoneAt(c.peer.x);
       participant.seat = c.peer.seat;

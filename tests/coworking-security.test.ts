@@ -11,6 +11,15 @@ import { startServer } from '../src/server/server.js';
 import { OFFICE_PLAN, seatHereOn } from '../src/shared/maps/index.js';
 
 type Frame = { t: string; [key: string]: any };
+async function freePort(): Promise<number> {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.listen(0, '127.0.0.1', () => {
+      const port = (server.address() as net.AddressInfo).port;
+      server.close(() => resolve(port));
+    });
+  });
+}
 class Visitor {
   frames: Frame[] = [];
   constructor(readonly ws: WebSocket) {
@@ -43,13 +52,7 @@ test('public invitations cannot expose private projects or authorize host operat
     writeFileSync(path.join(pub, `${page}.html`), `<!doctype html><title>${page}</title>`);
   }
   writeFileSync(path.join(project, 'private-notes.md'), 'PRIVATE_FILE_NEVER_PUBLIC');
-  const port = await new Promise<number>((resolve) => {
-    const s = net.createServer();
-    s.listen(0, '127.0.0.1', () => {
-      const p = (s.address() as net.AddressInfo).port;
-      s.close(() => resolve(p));
-    });
-  });
+  const port = await freePort();
   const cfg = loadConfig([project, '--home', home, '--port', String(port), '--password', 'guest-boundary-test', '--no-open', '--weather', 'clear']);
   const office = await startServer(cfg, { publicDir: pub });
   const base = `http://127.0.0.1:${port}`;
@@ -198,6 +201,11 @@ test('public invitations cannot expose private projects or authorize host operat
     assert.equal(second.ws.readyState, WebSocket.OPEN);
     guest.send({ t: 'cowork.release' });
     await guest.take('cowork.state', (f) => !f.state.claims.some((c: any) => c.seat === seat));
+    await new Promise((resolve) => setTimeout(resolve, 310));
+    second.send({ t: 'cowork.claim', seat });
+    await second.take('cowork.state', (f) => f.state.claims.some((c: any) => c.peerId === secondWelcome.you));
+    second.ws.close();
+    await guest.take('cowork.state', (f) => !f.state.claims.some((c: any) => c.seat === seat));
   });
   await t.test('host moderation survives reconnects and applies to all tabs of a guest session', async () => {
     host.send({ t: 'floor.go', floor: '@lobby' });
@@ -215,6 +223,12 @@ test('public invitations cannot expose private projects or authorize host operat
     const again = await connect(modCookie);
     const reconnected = await again.take('welcome');
     assert.equal(reconnected.peers.find((p: any) => p.id === reconnected.you).muted, true);
+    assert.equal(reconnected.me.guest.muted, true);
+    await new Promise((resolve) => setTimeout(resolve, 310));
+    host.send({ t: 'cowork.moderate', peerId: firstWelcome.you, action: 'unmute' });
+    await first.take('cowork.forceMute', (f) => !f.muted);
+    const released = await first.take('cowork.update', (f) => f.participant.peerId === firstWelcome.you && f.participant.hostMuted === false);
+    assert.equal(released.participant.muted, true, 'lifting a host restriction does not turn on a guest microphone');
     // Host throttle is intentionally bounded; a ping provides ordering, not elapsed time.
     await new Promise((resolve) => setTimeout(resolve, 310));
     const closed = [first, second, again].map((v) => new Promise<void>((resolve) => v.ws.once('close', () => resolve())));
@@ -233,5 +247,29 @@ test('public invitations cannot expose private projects or authorize host operat
     await Promise.race([closed, new Promise((_, reject) => setTimeout(() => reject(new Error('guest remained connected after revoke')), 3000))]);
     assert.equal((await request('/api/whoami', guestCookie)).status, 401);
     assert.equal((await request('/api/guest/enter', '', 'POST', { token: invitation.token, name: 'Another visitor' })).status, 410);
+  });
+  await t.test('standalone mode ignores saved project floors while retaining invitation management', async () => {
+    const lobbyPort = await freePort();
+    const lobbyCfg = loadConfig([project, '--home', home, '--port', String(lobbyPort), '--password', 'guest-boundary-test', '--lobby-only', '--no-open', '--weather', 'clear']);
+    const standalone = await startServer(lobbyCfg, { publicDir: pub });
+    const url = `http://127.0.0.1:${lobbyPort}`;
+    let ws: WebSocket | undefined;
+    try {
+      assert.equal(standalone.floors().length, 0);
+      assert.ok(office.floors().some((floor) => floor.id === privateFloor));
+      const login = await fetch(url + '/api/login', { method: 'POST', headers: { origin: url, 'content-type': 'application/json' }, body: JSON.stringify({ password: 'guest-boundary-test' }) });
+      const cookie = cookieOf(login);
+      ws = new WebSocket(url.replace('http', 'ws') + '/ws', { headers: { cookie, origin: url } });
+      const visitor = new Visitor(ws);
+      await new Promise<void>((resolve, reject) => { ws!.once('open', resolve); ws!.once('error', reject); });
+      const arrival = await visitor.take('welcome');
+      assert.equal(arrival.floor, '@lobby');
+      assert.equal(arrival.project, null);
+      assert.deepEqual(arrival.floors, []);
+      assert.deepEqual(arrival.workers, []);
+      assert.equal(arrival.me.lobbyOnly, true);
+      assert.equal((await fetch(url + '/api/search?q=private', { headers: { cookie } })).status, 403);
+      assert.equal((await fetch(url + '/api/guest/invitations', { headers: { cookie } })).status, 200);
+    } finally { ws?.terminate(); standalone.shutdown(); }
   });
 });
