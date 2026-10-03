@@ -17,6 +17,7 @@ import { $, closeAllModals, h, modalOpen, toast } from '../../ui/dom';
 import { openQueue } from '../../ui/queue';
 import { openSearch } from '../../ui/search';
 import { openTerminal, type TerminalFind } from '../../ui/terminal';
+import { canUseProjectTools } from '../../shared/guest';
 
 /** Registers N (and the Workers panel's count), the compass's tick ('render') and / (search). */
 export function installWaiting(ctx: Ctx, core: CoreState, parts: Pick<Parts, 'worlds' | 'views' | 'actions'>) {
@@ -29,6 +30,7 @@ export function installWaiting(ctx: Ctx, core: CoreState, parts: Pick<Parts, 'wo
 
   /** N: to the worker that has waited longest on someone, and on each press after, the next. */
   function goToNextWaiting() {
+    if (!canUseProjectTools()) return;
     if (core.trip) return;
     const w = nextUp.next(store.workers.values(), waitingBeside());
     const desk = w && parts.worlds.plan().byId.get(w.deskId);
@@ -62,6 +64,10 @@ export function installWaiting(ctx: Ctx, core: CoreState, parts: Pick<Parts, 'wo
   }
 
   function renderWaiting() {
+    if (!canUseProjectTools()) {
+      $('waiting').classList.add('hidden');
+      return;
+    }
     const waiting = waitingInOrder(store.workers.values());
     const el = $('waiting');
     el.classList.toggle('hidden', !waiting.length);
@@ -72,7 +78,7 @@ export function installWaiting(ctx: Ctx, core: CoreState, parts: Pick<Parts, 'wo
   ctx.keys.bind({
     code: 'KeyN',
     run: () => {
-      goToNextWaiting();
+      if (canUseProjectTools()) goToNextWaiting();
     },
   });
 
@@ -97,6 +103,7 @@ export function installWaiting(ctx: Ctx, core: CoreState, parts: Pick<Parts, 'wo
 
   /** Opening a sleeping worker's terminal wakes it, so there's nothing to press first. */
   function openWorkerTerminal(id: string, find?: TerminalFind) {
+    if (!canUseProjectTools()) return;
     const w = store.workers.get(id);
     if (!w) return;
     const { actions } = parts;
@@ -107,6 +114,7 @@ export function installWaiting(ctx: Ctx, core: CoreState, parts: Pick<Parts, 'wo
 
   /** 🔎 the chat and every terminal; a terminal line opens that terminal right at it. */
   function showSearch() {
+    if (!canUseProjectTools()) return;
     openSearch(openWorkerTerminal);
   }
   // By the character, so it's / on any keyboard layout. The search box opens without it.
@@ -120,6 +128,7 @@ export function installWaiting(ctx: Ctx, core: CoreState, parts: Pick<Parts, 'wo
 
   /** What the worker changed: changed files, diff, commit / discard / open a PR; `repo` for another floor's repository it works in. */
   function openWorkerChanges(id: string, repo?: string) {
+    if (!canUseProjectTools()) return;
     const w = store.workers.get(id);
     if (!w) return;
     if (w.lost) return parts.actions.fixLostWorktree(w);
@@ -127,6 +136,7 @@ export function installWaiting(ctx: Ctx, core: CoreState, parts: Pick<Parts, 'wo
   }
 
   function showQueue() {
+    if (!canUseProjectTools()) return;
     openQueue(net, { openTerminal: openWorkerTerminal });
   }
 

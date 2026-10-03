@@ -9,6 +9,7 @@ import { ROOF, isDrink } from '../../../shared/rooftop.js';
 import { isBarGame } from '../../../shared/bargames.js';
 import { throttle } from '../../office/client.js';
 import { COLOR_RE, issueNumber, num, str } from '../../office/input.js';
+import { isGuestClient, isGuestMuted } from '../../access.js';
 import type { HandlerMap } from './types.js';
 
 export const presenceHandlers = {
@@ -69,7 +70,7 @@ export const presenceHandlers = {
     if (seat === c.peer.seat) return;
     // Somebody on the floor got there first (two people arriving at an empty throne at once).
     // (Not yourself, on a connection that hasn't timed out yet after a reconnect.)
-    const same = (o: typeof c) => o.peer.name === c.peer.name || (!!o.accountId && o.accountId === c.accountId);
+    const same = (o: typeof c) => !isGuestClient(c) && o.peer.name === c.peer.name || (!!o.accountId && o.accountId === c.accountId);
     const there = seat && [...ctx.clients.values()].find((o) => o !== c && !same(o) && o.peer.seat === seat && o.peer.floor === c.peer.floor);
     if (there) {
       ctx.sendTo(c, { t: 'sit.refused', seat: key, by: there.peer.name });
@@ -95,20 +96,20 @@ export const presenceHandlers = {
     ctx.broadcast({ t: 'peer.update', peer: c.peer });
   },
   voice(ctx, c, msg) {
-    c.peer.voice = !!msg.voice;
-    c.peer.muted = !!msg.muted;
-    c.peer.sharing = !!msg.sharing;
+    c.peer.voice = isGuestMuted(c) ? false : !!msg.voice;
+    c.peer.muted = isGuestMuted(c) || !!msg.muted;
+    c.peer.sharing = isGuestClient(c) ? false : !!msg.sharing;
     ctx.broadcast({ t: 'peer.update', peer: c.peer });
   },
   rtc(ctx, c, msg) {
     const target = ctx.clients.get(str(msg.to, 32));
-    if (target && target.peer.floor === c.peer.floor) ctx.sendTo(target, { t: 'rtc', from: c.id, data: msg.data });
+    if (target && target.peer.floor === c.peer.floor && !(isGuestClient(c) && isGuestMuted(c))) ctx.sendTo(target, { t: 'rtc', from: c.id, data: msg.data });
   },
   chat(ctx, c, msg) {
     const who = c.peer.name;
     const text = str(msg.text, 500).trim();
     if (!text) return;
-    const line: ChatLine = { from: c.id, name: who, color: c.peer.color, text, at: Date.now(), ...(c.accountId ? { account: true } : {}) };
+    const line: ChatLine = { from: c.id, name: who, color: c.peer.color, text, at: Date.now(), ...(c.accountId ? { account: true } : {}), ...(c.peer.floor ? { floor: c.peer.floor } : {}) };
     ctx.chat.add(line);
     ctx.broadcast({ t: 'chat', ...line });
   },

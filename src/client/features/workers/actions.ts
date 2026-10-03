@@ -28,6 +28,7 @@ import { openPull } from '../../ui/pull';
 import { openRepoPulls, workerRepos } from '../../ui/repos';
 import { openTerminal } from '../../ui/terminal';
 import { hiringPaused, usageLabel, usageTitle } from '../../ui/usage';
+import { canUseProjectTools } from '../../shared/guest';
 
 // The kinds of thing you can use that this defines (see InteractKinds in world/types.ts).
 declare module '../../world/types' {
@@ -78,6 +79,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
   }
 
   function hire(deskId: string, prompt?: string, worktree = false, provider?: AgentProvider, model?: string, effort?: AgentEffort, issue?: number, repos?: string[], via?: 'herald') {
+    if (!canUseProjectTools()) return;
     net.send({ t: 'worker.spawn', deskId, prompt, worktree, provider, model, effort, issue, repos: repos?.length ? repos : undefined, via });
     // The moment notifications start to matter: ask once (it has to come from a key press or click).
     if (settings.notify && notifyPermission() === 'default' && !askedToNotify) {
@@ -87,11 +89,13 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
   }
 
   function openShell(deskId: string) {
+    if (!canUseProjectTools()) return;
     if (officeIsFull()) return;
     net.send({ t: 'worker.spawn', deskId, kind: 'shell' });
   }
 
   function promptAtDesk(deskId: string) {
+    if (!canUseProjectTools()) return;
     const w = store.workerAtDesk(deskId);
     const desk = plan().byId.get(deskId)!;
     if (!w) {
@@ -128,6 +132,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
 
   /** Direct hire from an empty desk, with an optional first prompt and provider choice. */
   function hireAtDesk(deskId: string) {
+    if (!canUseProjectTools()) return;
     const desk = plan().byId.get(deskId)!;
     if (officeIsFull()) return;
     openPrompt({
@@ -146,6 +151,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
 
   ctx.messages.on('worker.worktree', routeWorktreeMessage);
   function killWorker(id: string) {
+    if (!canUseProjectTools()) return;
     const w = store.workers.get(id);
     if (!w) return;
     const where = plan().byId.get(w.deskId)?.label ?? 'the desk';
@@ -178,6 +184,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
 
   /** E at a board agent: type it a request. It's hired with it when nobody is there yet. */
   function askStation(deskId: string) {
+    if (!canUseProjectTools()) return;
     const kind = plan().byId.get(deskId)?.station;
     if (!kind) return;
     const w = store.workerAtDesk(deskId);
@@ -208,6 +215,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
   }
 
   function resumeWorker(w: WorkerInfo) {
+    if (!canUseProjectTools()) return;
     if (w.lost) return fixLostWorktree(w);
     if (!w.sessionId && w.kind !== 'shell') toast(`${w.name} has no saved Claude session — starting a fresh one`, 'warn');
     net.send({ t: 'worker.resume', workerId: w.id });
@@ -243,6 +251,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
 
   /** O at a desk: see the worker's pull request, or push its branch and open one. */
   function pullRequestFor(w: WorkerInfo) {
+    if (!canUseProjectTools()) return;
     if (w.repos?.length) return pullRequestsFor(w);
     if (w.pr) {
       const it = store.pulls.items.find((p) => p.number === w.pr!.number);
@@ -344,6 +353,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
   }
 
   function deskHint(deskId: string): Hint {
+    if (!canUseProjectTools()) return { k: '', parts: [] };
     const w = store.workerAtDesk(deskId);
     if (!w && plan().byId.get(deskId)?.room) return { k: 'room', parts: [h('span.title', {}, `🤝 ${plan().byId.get(deskId)!.label} · free`), key('E', 'Call a meeting')] };
     // The sign over it, if it has one, and L to hang one (or change it).
@@ -411,6 +421,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
   }
 
   function stationHint(deskId: string): Hint {
+    if (!canUseProjectTools()) return { k: '', parts: [] };
     const kind = plan().byId.get(deskId)?.station;
     if (!kind) return { k: '', parts: [] };
     const w = store.workerAtDesk(deskId);
@@ -447,6 +458,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
     reach: 4.5,
     hint: (it) => (it.deskId ? deskHint(it.deskId) : { k: '', parts: [] }),
     use: (it, key) => {
+      if (!canUseProjectTools()) return;
       if (!it.deskId) return;
       if (key === 'L') return openDeskLabel(net, it.deskId);
       const w = store.workerAtDesk(it.deskId);
@@ -465,6 +477,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
     reach: 4.5,
     hint: (it) => (it.deskId ? stationHint(it.deskId) : { k: '', parts: [] }),
     use: (it, key) => {
+      if (!canUseProjectTools()) return;
       if (!it.deskId) return;
       const w = store.workerAtDesk(it.deskId);
       if (key === 'E' || key === 'P') return askStation(it.deskId);
@@ -475,6 +488,7 @@ export function installWorkerActions(ctx: Ctx, core: CoreState, parts: WorkerAct
 
   /** A prompt from the boards goes to a new worker at a free desk, or to one already at a desk. */
   function sendToWorker(title: string, text: { context?: string; initial?: string }) {
+    if (!canUseProjectTools()) return;
     const desk = freeDesk();
     const awake = [...store.workers.values()].filter((w) => w.kind === 'agent' && !isAsleep(w.status));
     if (!desk && !awake.length) {

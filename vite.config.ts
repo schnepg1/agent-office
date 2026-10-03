@@ -57,6 +57,7 @@ export default defineConfig({
         login: resolve(import.meta.dirname, 'src/client/login.html'),
         claim: resolve(import.meta.dirname, 'src/client/claim.html'),
         join: resolve(import.meta.dirname, 'src/client/join.html'),
+        guest: resolve(import.meta.dirname, 'src/client/guest.html'),
       },
     },
   },

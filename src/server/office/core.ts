@@ -2,6 +2,7 @@ import path from 'node:path';
 import type { Config } from '../config.js';
 import { Auth } from '../auth.js';
 import { Accounts } from '../accounts.js';
+import { Guests } from '../guests.js';
 import { providerCommand } from '../agents.js';
 import type { AgentProvider } from '../../shared/providers.js';
 import { createGrokModelCatalogue, createOpenCodeModelCatalogue } from '../models.js';
@@ -17,6 +18,7 @@ import type { Client } from './client.js';
 /** The first of the office: accounts and sign-in, the people in it, chat, the arcade, and the building's floors. */
 export function createCore(ctx: Ctx, cfg: Config, publicDir: string): Core {
   const accounts = new Accounts(cfg.dataDir);
+  const guests = new Guests(cfg.dataDir);
   const auth = new Auth(cfg.verifier, cfg.salt, cfg.secret, accounts);
   const clients = new Map<string, Client>();
   // Kept on disk, so a restart doesn't wipe it.
@@ -45,5 +47,5 @@ export function createCore(ctx: Ctx, cfg: Config, publicDir: string): Core {
     if (err) console.error(`agent-office: --projects: ${err}`);
   }
   const floors = new Map<string, Floor>();
-  return { cfg, publicDir, accounts, auth, clients, chat, highScores, arcade, officeName, openCodeModels, grokModels, building, floors };
+  return { cfg, publicDir, accounts, guests, auth, clients, chat, highScores, arcade, officeName, openCodeModels, grokModels, building, floors };
 }

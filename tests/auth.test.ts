@@ -29,3 +29,10 @@ test('only the newest sign-in links are kept', () => {
   assert.equal(a.useLinkKey(first), false);
   for (const key of later) assert.equal(a.useLinkKey(key), true);
 });
+
+test('guest cookies are scoped sessions and never authorize service relays', () => {
+  const a = new Auth(randomBytes(32), randomBytes(16), 'secret', { sharedPassword: false } as Accounts);
+  const token = a.issueGuest('guest-session-id');
+  assert.deepEqual(a.verify(token), { guestId: 'guest-session-id' });
+  assert.equal(a.fromAnyCookie({ headers: { cookie: `ao_session=${token}` } } as any), false);
+});

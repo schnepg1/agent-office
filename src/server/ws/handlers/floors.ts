@@ -1,8 +1,8 @@
 // The building's floors: riding the elevator between them and up to the roof, and adding and taking
 // off floors.
 import type { FloorClientMsg } from '../../../shared/protocol.js';
-import { LOBBY } from '../../../shared/coworking-space.js';
 import { ROOF } from '../../../shared/rooftop.js';
+import { LOBBY } from '../../../shared/coworking-space.js';
 import { arrivalSpot, str } from '../../office/input.js';
 import type { HandlerMap, ViewPieces } from './types.js';
 
