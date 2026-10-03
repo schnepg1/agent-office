@@ -35,4 +35,4 @@ function isLobbyOnlyMessage(t: string): boolean {
     t === 'floor.go' || t.startsWith('cowork.');
 }
 
-const GUEST_COMMANDS = new Set(['move', 'sit', 'profile', 'emote', 'voice', 'rtc', 'ping', 'chat', 'doing', 'floor.go']);
+const GUEST_COMMANDS = new Set(['move', 'sit', 'profile', 'emote', 'voice', 'rtc', 'ping', 'chat', 'doing', 'floor.go', 'cowork.claim', 'cowork.release', 'cowork.profile', 'cowork.sync']);

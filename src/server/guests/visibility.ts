@@ -66,6 +66,7 @@ export function createGuestVisibility(ctx: Ctx) {
       const sender = peerFor(msg.from);
       return sender && visiblePeer(c, sender) && !isGuestMuted(c) && !isGuestMuted(ctx.clients.get(msg.from)!) ? input : undefined;
     }
+    if (PUBLIC_COWORK.has(msg.t)) return canGuestViewFloor(c, c.peer.floor ?? LOBBY) ? input : undefined;
     if (msg.t === 'pong' || msg.t === 'sit.refused') return direct ? input : undefined;
     if (msg.t === 'toast') return direct ? { ...msg, text: 'That request could not be completed.' } as ServerMsg : undefined;
     return undefined;
@@ -73,3 +74,4 @@ export function createGuestVisibility(ctx: Ctx) {
   return forGuest;
 }
 
+const PUBLIC_COWORK = new Set<string>(['cowork.state', 'cowork.update', 'cowork.remove', 'cowork.refused', 'cowork.forceMute', 'cowork.saved']);
