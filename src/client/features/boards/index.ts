@@ -48,7 +48,8 @@ export function installBoards(ctx: Ctx, deps: BoardsDeps) {
     for (const topic of topics) store.on(topic, render);
     render();
   }
-  function showOn(mesh: THREE.Mesh, texture: THREE.Texture) {
+  function showOn(mesh: THREE.Mesh | undefined, texture: THREE.Texture) {
+    if (!mesh) return;
     const mat = mesh.material as THREE.MeshBasicMaterial;
     if (mat.map === texture) return;
     mat.map = texture;

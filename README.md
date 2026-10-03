@@ -11,6 +11,8 @@
 
 **A 3D office your team shares with its coding agents.**
 
+The [social lobby](docs/lobby.md) is a permanent room with its own map. Use `--lobby-only` to host it without loading project floors.
+
 Sit **Claude Code**, **Codex**, **OpenCode**, **Grok**, **Muse** and **DeepSeek Harness** workers at desks, watch each one's terminal on the laptop in front of it,
 and jump into any of them together. Every GitHub repo is a floor of the building.
 

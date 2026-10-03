@@ -53,3 +53,7 @@ agent-office accounts [list | invite [name] [--admin] | revoke <name> | role <na
   Invite, list and revoke people's own accounts, and switch the shared password
   off or on. Works while the office runs.
 ```
+
+## Standalone social lobby
+
+`--lobby-only` (or `AGENT_OFFICE_LOBBY_ONLY=1`) starts only the project-independent lobby, with its own social map. Saved project floors and worker tools remain disabled. See [lobby hosting](lobby.md).

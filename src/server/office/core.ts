@@ -40,7 +40,7 @@ export function createCore(ctx: Ctx, cfg: Config, publicDir: string): Core {
 
   // --- The building: a floor per project, each with its own workers, boards and queue -----------
   const building = new Building(cfg.dataDir, cfg.projectsDir);
-  if (cfg.projects) {
+  if (cfg.projects && !cfg.lobbyOnly) {
     const err = building.setProjectsDir(cfg.projects, 'the command line');
     if (err) console.error(`agent-office: --projects: ${err}`);
   }
