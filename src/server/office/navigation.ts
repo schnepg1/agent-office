@@ -3,6 +3,7 @@ import { elevatorSpot } from '../../shared/layout.js';
 import { ROOF } from '../../shared/rooftop.js';
 import { LOBBY } from '../../shared/coworking-space.js';
 import { LOBBY_PLAN } from '../../shared/lobby-map.js';
+import { canGuestViewFloor, isGuestClient } from '../access.js';
 import { features } from '../ws/handlers/index.js';
 import type { Ctx, Navigation } from './context.js';
 import type { Client } from './client.js';
@@ -16,19 +17,23 @@ export function navigation(ctx: Ctx): Navigation {
    * everything. They arrive in the elevator, or `at` the spot they came by.
    */
   const goToFloor = (c: Client, floor: Floor, at?: Spot) => {
+    if (isGuestClient(c) && !canGuestViewFloor(c, floor.id)) return ctx.warn(c, 'That floor is outside your invitation');
     if (c.peer.floor === floor.id) return;
     const left = leave(c, c.peer.floor === LOBBY ? ctx.maps.plan().spawn : at);
     Object.assign(c.peer, { floor: floor.id });
     ctx.sendTo(c, { t: 'floor.enter', peers: [...ctx.clients.values()].map((o) => o.peer), ...floorView(ctx, floor) });
-    screensOf(ctx, c, floor);
+    if (!isGuestClient(c)) screensOf(ctx, c, floor);
     arrived(c, left);
-    floor.arrived();
-    floor.workers.wakeAll();
+    if (!isGuestClient(c)) {
+      floor.arrived();
+      floor.workers.wakeAll();
+    }
     ctx.floorsChanged();
   };
 
   /** Up to the rooftop bar, by elevator. */
   const goToRoof = (c: Client) => {
+    if (isGuestClient(c)) return ctx.warn(c, 'Guests stay in the lobby and invited floors');
     if (c.peer.floor === ROOF) return;
     const left = leave(c);
     c.peer.floor = ROOF;

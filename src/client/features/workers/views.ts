@@ -26,6 +26,7 @@ import { renderWorkers } from '../../ui/workers-panel';
 import { renderLimits } from '../../ui/limits';
 import { modelBadge, providerLabel } from '../../ui/provider';
 import { renderUsage } from '../../ui/usage';
+import { canUseProjectTools } from '../../shared/guest';
 import { Worker } from '../../world/character';
 import { Jail } from './jail';
 import { Laptop } from './laptop';
@@ -348,11 +349,12 @@ export function installWorkerViews(ctx: Ctx, core: CoreState, parts: WorkerViews
   ctx.interactions.define('expand', {
     reach: 8,
     hint: () => {
+      if (!canUseProjectTools()) return { k: '', parts: [] };
       const level = store.floorPlan.wing;
       if (level >= WING.rows) return { k: 'full', parts: [hintTitle('🏢 Back office'), aside('built all the way out'), key('E', 'Wall a row up')] };
       return { k: String(level), parts: [hintTitle(level ? '🚧 Room to grow' : '🚧 Room to grow through the wall'), aside(level ? `${level} of ${WING.rows} rows built` : 'the office can get bigger here'), key('E', level ? 'Another row: 2 more desks' : 'Knock through: 2 more desks')] };
     },
-    use: onE(() => openExpand(net)),
+    use: onE(() => { if (canUseProjectTools()) openExpand(net); }),
   });
   // A worker at the meeting table shows its role and round over its head (see meetingCard).
   store.on('meeting', syncWorkers);

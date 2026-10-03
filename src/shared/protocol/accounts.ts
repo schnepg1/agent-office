@@ -1,4 +1,5 @@
 // Who is signed in: accounts and invites, people's own sign-ins, and the SSH team.
+import type { GuestInfo } from '../coworking-space.js';
 
 export type AccountRole = 'admin' | 'member';
 
@@ -6,6 +7,11 @@ export type AccountRole = 'admin' | 'member';
 export interface Me {
   /** Your own account; missing when you came in with the shared office password. */
   account?: { name: string; role: AccountRole };
+  /** A named, credential-free guest with a lobby and optional read-only floor scope. */
+  guest?: GuestInfo;
+  role?: AccountRole | 'guest';
+  lobby?: boolean;
+  lobbyOnly?: boolean;
   /** May invite, list and revoke accounts. */
   admin: boolean;
 }

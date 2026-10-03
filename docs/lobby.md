@@ -2,7 +2,7 @@
 
 The Lobby entry in the floor menu opens a permanent room independent of any repository. It has its own map and human chairs. Project floors keep their existing office, castle or custom map.
 
-This foundation uses the office's existing password/account authentication. Invite only people you trust with the existing office privileges. Public guest invitations and coworking profiles are separate additions.
+This foundation uses the office's existing password/account authentication. Invite only people you trust with the existing office privileges. Use [guest invitations](guest-invitations.md) for limited visitors; coworking profiles are a separate addition.
 
 For a standalone room:
 

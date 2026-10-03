@@ -3,6 +3,7 @@ import { store, type HudPanel, type Settings, type Topic } from '../state';
 import { waitingOnSomeone } from '../notify';
 import { DESK_BY_ID } from '../../shared/layout';
 import { $, h, openModal, type Modal } from './dom';
+import { canUseProjectTools } from '../shared/guest';
 
 /** One thing the ☰ menu does. Any of them can be pinned to the top bar. */
 export interface HudAction {
@@ -74,7 +75,7 @@ export function mountHud(actions: HudAction[], settings: Settings, save: () => v
   menuBtn.addEventListener('click', () => toggleMenu());
 
   function applyPanels() {
-    for (const p of PANELS) $(PANEL_EL[p.id]).classList.toggle('hud-off', !settings.hud[p.id]);
+    for (const p of PANELS) $(PANEL_EL[p.id]).classList.toggle('hud-off', ['workers', 'spend', 'limits', 'floor'].includes(p.id) && !canUseProjectTools() || !settings.hud[p.id]);
   }
 
   function setPanel(id: HudPanel, on: boolean) {
@@ -124,6 +125,7 @@ export function mountHud(actions: HudAction[], settings: Settings, save: () => v
   }
 
   function render() {
+    applyPanels();
     const items: HTMLElement[] = actions.filter((a) => offered(a) && (pinned(a) || a.status?.())).map(dockButton);
     const people = store.peers.size;
     if (people > 1 || settings.hud.people) items.push(panelChip('people', '👥', 'People', people, `${people} in the office`));
@@ -133,7 +135,7 @@ export function mountHud(actions: HudAction[], settings: Settings, save: () => v
     const waiting = workers.filter(waitingOnSomeone).length;
     const workersTitle = hired || waiting ? `${hired} worker${hired === 1 ? '' : 's'} on this floor${waiting ? `, ${waiting} waiting on someone` : ''}` : 'No workers on this floor yet';
     // Who's waiting has its own button on the bar (the 'waiting' action), so this just counts them.
-    items.push(panelChip('workers', '🤖', 'Workers', hired, workersTitle));
+    if (canUseProjectTools()) items.push(panelChip('workers', '🤖', 'Workers', hired, workersTitle));
     // Redrawn only when it looks different, so a busy worker's updates don't swap a button out from under a click.
     const next = h('div', {}, ...items);
     if (next.innerHTML !== [...dock.children].filter((c) => c !== menuBtn).map((c) => c.outerHTML).join('')) dock.replaceChildren(...items, menuBtn);
@@ -201,7 +203,7 @@ export function mountHud(actions: HudAction[], settings: Settings, save: () => v
       'div.hud-menu',
       { role: 'menu', 'aria-label': 'Menu' },
       h('div.menu-col', {}, ...section('Open', rows('Open')), ...section('Together', rows('Together'))),
-      h('div.menu-col', {}, ...section('Show on screen', PANELS.map(toggle)), ...section('Office', rows('Office'))),
+      h('div.menu-col', {}, ...section('Show on screen', PANELS.filter((p) => canUseProjectTools() || !['workers', 'spend', 'limits', 'floor'].includes(p.id)).map(toggle)), ...section('Office', rows('Office'))),
       h('p.menu-foot', {}, 'Pin what you use most to keep it on the top bar. ', h('kbd', {}, 'Tab'), ' opens and closes this menu.'),
     );
     // On the window, so the keys work wherever focus is while the menu is up.

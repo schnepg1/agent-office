@@ -3,6 +3,7 @@ import { WebSocket } from 'ws';
 import type { FloorDef } from '../building.js';
 import { Floor, type FloorContext } from '../floor.js';
 import { ROOF } from '../../shared/rooftop.js';
+import { isGuestClient, canGuestViewFloor } from '../access.js';
 import type { FloorInfo, ServerMsg } from '../../shared/protocol.js';
 import type { Ctx, FloorHelpers, FloorsOpen } from './context.js';
 import { SLOW_CLIENT_BYTES, type Client } from './client.js';
@@ -48,7 +49,9 @@ export function floorHelpers(ctx: Ctx): FloorHelpers {
     ctx.broadcast({ t: 'floors', floors: list });
     for (const c of ctx.clients.values()) {
       if (c.peer.floor === floor.id || (!next && c.peer.floor === ROOF)) {
-        if (next) ctx.goToFloor(c, next);
+        if (next && (!isGuestClient(c) || canGuestViewFloor(c, next.id))) ctx.goToFloor(c, next);
+        else if (isGuestClient(c)) ctx.toLobby(c);
+        else if (next) ctx.goToFloor(c, next);
         else ctx.toLobby(c);
         ctx.sendTo(c, { t: 'toast', text: next ? `🛗 ${who} took ${name} off the building, so you rode the elevator to ${next.def.name}` : `🛗 ${who} took ${name}, the last floor, off the building`, level: 'warn' });
       } else ctx.sendTo(c, { t: 'toast', text: `🛗 ${who} took ${name} off the building`, level: 'info' });
