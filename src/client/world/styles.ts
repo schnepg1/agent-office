@@ -1,4 +1,5 @@
-import type { MapPlan, MapStyle } from '../../shared/maps';
+import type { MapPlan } from '../../shared/maps';
+import { buildLobby } from './lobby';
 import { buildCastle } from './castle';
 import type { World } from './world';
 
@@ -7,6 +8,7 @@ import type { World } from './world';
  * plan to a World, and its name in MAP_STYLES: every map in that style can then be picked, and
  * main.ts shows it like any other.
  */
-export const BUILDERS: Record<MapStyle, (plan: MapPlan) => World> = {
+export const BUILDERS: Record<Exclude<MapPlan['style'], 'office'>, (plan: MapPlan) => World> = {
   castle: buildCastle,
+  lobby: buildLobby,
 };

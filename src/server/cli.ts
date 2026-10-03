@@ -24,7 +24,7 @@ await ensureSelfSigned(cfg);
 const { interactive, welcome } = await import('./setup.js');
 const atTerminal = interactive();
 // A new office started in a terminal: where projects go, GitHub, and the first floor, before it opens.
-if (!cfg.project && atTerminal) await welcome(cfg);
+if (!cfg.lobbyOnly && !cfg.project && atTerminal) await welcome(cfg);
 
 let office: Awaited<ReturnType<typeof startServer>>;
 try {
@@ -50,6 +50,7 @@ if (everywhere) {
 
 const agent = office.resolvedAgent;
 function floorsLine() {
+  if (cfg.lobbyOnly) return 'ðŸ›— lobby-only: project floors and worker tools are disabled';
   const floors = office.floors();
   const where = `new ones are cloned into ${tildify(office.projectsDir())}`;
   if (!floors.length) return `🛗 no floors yet — ride the elevator in the office to add a project (${where})`;
@@ -98,8 +99,8 @@ console.log(`
   ${[...urls].join('\n  ')}${loopback ? '\n  (only this computer can open it: --host 0.0.0.0 lets your network in)' : ''}
 ${signIn ? `\n  sign in: ${signIn}\n           ${opened ? 'opened in your browser; ' : ''}the link works once\n` : ''}
   password: ${passwordLine()}
-  default agent: ${[agent ?? `${cfg.agentCmd} (via login shell)`, ...cfg.agentArgs].join(' ')}
-  choose a provider (including Pi) when hiring or queueing a task
+${cfg.lobbyOnly ? '' : `  default agent: ${agent ?? `${cfg.agentCmd} (via login shell)`} ${cfg.agentArgs.join(' ')}
+  choose a provider (including Pi) when hiring or queueing a task`}
 ${cfg.tls || loopback ? '' : '\n  tip: voice & screen share need https off localhost — use a reverse proxy or --self-signed\n'}`);
 
 let closing = false;

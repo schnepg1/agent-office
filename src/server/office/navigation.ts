@@ -1,6 +1,8 @@
 import type { Floor } from '../floor.js';
 import { elevatorSpot } from '../../shared/layout.js';
 import { ROOF } from '../../shared/rooftop.js';
+import { LOBBY } from '../../shared/coworking-space.js';
+import { LOBBY_PLAN } from '../../shared/lobby-map.js';
 import { features } from '../ws/handlers/index.js';
 import type { Ctx, Navigation } from './context.js';
 import type { Client } from './client.js';
@@ -15,7 +17,7 @@ export function navigation(ctx: Ctx): Navigation {
    */
   const goToFloor = (c: Client, floor: Floor, at?: Spot) => {
     if (c.peer.floor === floor.id) return;
-    const left = leave(c, at);
+    const left = leave(c, c.peer.floor === LOBBY ? ctx.maps.plan().spawn : at);
     Object.assign(c.peer, { floor: floor.id });
     ctx.sendTo(c, { t: 'floor.enter', peers: [...ctx.clients.values()].map((o) => o.peer), ...floorView(ctx, floor) });
     screensOf(ctx, c, floor);
@@ -37,9 +39,10 @@ export function navigation(ctx: Ctx): Navigation {
 
   /** Out to the lobby, where the elevator has nowhere to go: the building's last floor was taken off. */
   const toLobby = (c: Client) => {
-    const left = leave(c);
-    delete c.peer.floor;
-    ctx.sendTo(c, { t: 'floor.enter', peers: [...ctx.clients.values()].map((o) => o.peer), ...floorView(ctx, undefined) });
+    if (c.peer.floor === LOBBY) return;
+    const left = leave(c, LOBBY_PLAN.spawn);
+    c.peer.floor = LOBBY;
+    ctx.sendTo(c, { t: 'floor.enter', peers: [...ctx.clients.values()].map((o) => o.peer), ...floorView(ctx, undefined), floor: LOBBY });
     arrived(c, left);
   };
 

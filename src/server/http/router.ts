@@ -27,6 +27,7 @@ interface Answers {
  */
 export type Route = Where &
   Answers &
+  { lobbyOnly?: boolean } &
   (
     | { auth: 'public'; handle(ctx: Ctx, r: RouteRequest): unknown }
     | { auth: 'session'; handle(ctx: Ctx, r: RouteRequest & { session: Session }): unknown }
@@ -49,6 +50,7 @@ export function requestHandler(ctx: Ctx, routes: readonly Route[]) {
       const tunneled = tunneledPort(req, cfg.port, cfg.tailnet);
       const svc = tunneled ? ctx.services.lookup(tunneled) : undefined;
       if (tunneled && svc) {
+        if (cfg.lobbyOnly) return send(res, 403, { error: 'Project tools are disabled in lobby-only mode' });
         if (req.method === 'POST' && req.url === RELAY_LOGIN) return await login(ctx, req, res);
         if (!auth.fromAnyCookie(req)) return signInPage(res, tunneled, loginOptions(ctx));
         if (svc === 'gone') return stoppedPage(res, tunneled);
@@ -72,7 +74,10 @@ export function requestHandler(ctx: Ctx, routes: readonly Route[]) {
         res.writeHead(302, { location: p === '/lite' ? '/login?next=/lite' : '/login' }).end();
         return;
       }
-      for (const route of signedIn) if (route.auth === 'session' && matches(route, req.method, p)) return await route.handle(ctx, { ...r, session });
+      for (const route of signedIn) if (route.auth === 'session' && matches(route, req.method, p)) {
+        if (cfg.lobbyOnly && !route.lobbyOnly) return send(res, 403, { error: 'Project tools are disabled in lobby-only mode' });
+        return await route.handle(ctx, { ...r, session });
+      }
     } catch (err) {
       console.error(err);
       if (!res.headersSent) send(res, 500, { error: 'Internal error' });

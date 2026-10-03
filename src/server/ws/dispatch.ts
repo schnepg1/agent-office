@@ -12,5 +12,6 @@ type AnyHandler = (ctx: Ctx, c: Client, msg: ClientMsg) => void;
  */
 export function dispatch(ctx: Ctx, c: Client, msg: ClientMsg): void {
   if (typeof msg.t !== 'string' || !Object.hasOwn(handlers, msg.t)) return;
+  if (ctx.cfg.lobbyOnly && !['move', 'sit', 'profile', 'emote', 'voice', 'rtc', 'ping', 'chat', 'doing', 'floor.go'].includes(msg.t)) return;
   (handlers[msg.t] as AnyHandler)(ctx, c, msg);
 }

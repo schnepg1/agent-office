@@ -38,7 +38,7 @@ export interface World {
   pickables: THREE.Object3D[];
   /** Every seat by id: the desks, the overflow seats, the board agents' places and the meeting chairs. */
   desks: Map<string, DeskView>;
-  boardMeshes: Record<BoardKey, THREE.Mesh>;
+  boardMeshes: Partial<Record<BoardKey, THREE.Mesh>>;
   /** The meeting's output as it's written, and how the meeting's going, where the map shows them. */
   meetingBoard?: THREE.Mesh;
   meetingSign?: THREE.Mesh;

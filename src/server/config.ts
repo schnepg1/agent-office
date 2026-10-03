@@ -21,6 +21,8 @@ export interface Config {
   port: number;
   /** Open the office in a browser, signed in, when it's started in a terminal (--no-open: don't). */
   open: boolean;
+  /** Start a project-independent lobby without loading project floors or their tools. */
+  lobbyOnly: boolean;
   /** Plaintext password, only when known: from --password, or generated and not yet claimed. */
   password?: string;
   passwordGenerated: boolean;
@@ -117,6 +119,7 @@ Options:
       --reset-password    Forget the generated password (a new one is made on the
                           next start) and exit
       --no-open           Don't open the office in your browser when it starts
+      --lobby-only        Start the shared lobby without opening project floors or tools
                           (env AGENT_OFFICE_NO_OPEN=1)
       --agent <cmd>       Default agent command (default "claude", env AGENT_OFFICE_AGENT)
       --agent-args <str>  Extra args for the configured agent, e.g. "--model opus"
@@ -213,6 +216,7 @@ export function loadConfig(argv: string[]): Config {
   // Loopback unless asked: an office lets whoever signs in run commands on this machine.
   let host = '127.0.0.1';
   let open = !process.env.AGENT_OFFICE_NO_OPEN || process.env.AGENT_OFFICE_NO_OPEN === '0';
+  let lobbyOnly = process.env.AGENT_OFFICE_LOBBY_ONLY === '1';
   let password = process.env.AGENT_OFFICE_PASSWORD || '';
   let agentCmd = process.env.AGENT_OFFICE_AGENT || 'claude';
   let agentArgs: string[] = splitArgs(process.env.AGENT_OFFICE_AGENT_ARGS || '');
@@ -280,6 +284,9 @@ export function loadConfig(argv: string[]): Config {
         break;
       case '--no-open':
         open = false;
+        break;
+      case '--lobby-only':
+        lobbyOnly = true;
         break;
       case '--turn':
         iceServers.push(parseTurn(takeValue(argv, i++, a)));
@@ -416,6 +423,7 @@ export function loadConfig(argv: string[]): Config {
     host,
     port,
     open,
+    lobbyOnly,
     password: password || undefined,
     passwordGenerated,
     verifier,

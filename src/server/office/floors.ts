@@ -69,6 +69,7 @@ export function floorHelpers(ctx: Ctx): FloorHelpers {
  */
 export async function openFloors(ctx: Ctx, hookPort: number): Promise<FloorsOpen> {
   const { cfg, floors, clients } = ctx;
+  if (cfg.lobbyOnly) return { openFloor: () => undefined };
   const floorContext: FloorContext = {
     agentCmd: cfg.agentCmd,
     agentArgs: cfg.agentArgs,

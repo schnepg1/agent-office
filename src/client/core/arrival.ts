@@ -5,6 +5,7 @@
  * says about where you are: the project in the corner and the tab's title, the upgrade banner, and the
  * sign-ins a newcomer is greeted with.
  */
+import { LOBBY } from '../../shared/coworking-space';
 import { OFFICE_PLAN } from '../../shared/maps';
 import { SLAB, inElevator } from '../../shared/layout';
 import { ROOF, ROOF_NAME } from '../../shared/rooftop';
@@ -186,6 +187,13 @@ export function installArrival(ctx: Ctx, core: CoreState, parts: ArrivalParts) {
       return;
     }
     if (!p) {
+      if (store.floor === LOBBY) {
+        $('project-name').textContent = 'Coworking lobby';
+        $('project-meta').textContent = 'A shared room - choose a project from the floor menu';
+        $('project-meta').classList.add('lobby');
+        ctx.world().setProjectName('Coworking lobby');
+        return;
+      }
       $('project-name').textContent = '🏢 Agent Office';
       $('project-meta').textContent = store.floors.length ? '🛗 Take the elevator to a floor' : '🛗 No floors yet — add a project in the elevator';
       // Where to go next, so it shows even with the floor details turned off.
