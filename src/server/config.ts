@@ -59,6 +59,8 @@ export interface Config {
   city?: string;
   /** Weather pinned for good, instead of made up or forecast. */
   weather?: Weather;
+  /** The sky keeps real time (a day a day), instead of a whole day and night every hour. */
+  realTimeSky: boolean;
 }
 
 export interface RTCIceServerLike {
@@ -75,6 +77,7 @@ Usage:
   agent-office setup [--projects <dir>] [--project <owner/repo>]...
   agent-office prune [dir] [--dry-run] [--force]
   agent-office accounts [list|invite|revoke|role|password] ...
+  agent-office tunnel [office@address | url]
 
 Runs the office. Every project is a floor of the building: ride the elevator,
 pick one of the repositories your \`gh\` login can see, and the office clones it
@@ -98,6 +101,9 @@ Commands:
                           changes or unpushed commits is kept unless --force is given.
   accounts                Invite, list and revoke people's own accounts, and switch
                           the shared password off or on (see accounts --help)
+  tunnel                  On your own computer, for an office that runs somewhere
+                          else: every web server a worker starts there opens on the
+                          same port here, by itself (see tunnel --help)
 
 Options:
       --home <dir>        Where the office keeps its data when no [dir] is given
@@ -129,7 +135,8 @@ Options:
       --self-signed       Serve HTTPS with a generated self-signed certificate
       --trust-proxy       Trust X-Forwarded-* headers (behind Caddy/nginx)
       --turn <url>        Add a TURN server for voice (repeatable), e.g.
-                          turn:user:pass@turn.example.com:3478
+                          turn:user:pass@turn.example.com:3478 (env
+                          AGENT_OFFICE_TURN, several separated by spaces)
       --budget <usd>      Daily budget for tracked Claude Code spend (env
                           AGENT_OFFICE_BUDGET). Everyone is warned when the
                           day's spend passes it. OpenCode/Codex/Grok/Muse spend is excluded
@@ -150,6 +157,10 @@ Options:
                           whole day and night go by every hour
       --weather <kind>    Pin the weather: clear, cloudy, rain, storm, snow or
                           fog (env AGENT_OFFICE_WEATHER)
+      --real-time-sky     Start the sky on the office's real clock, so it's night when
+                          it's night there, instead of a day and night every hour
+                          (⚙️ Settings can switch it)
+                          (env AGENT_OFFICE_SKY_CLOCK=real)
   -h, --help              Show this help
 
 Started in a terminal, the office opens in your browser already signed in, with
@@ -189,15 +200,15 @@ export function officeHome(): string {
   return path.resolve(process.env.AGENT_OFFICE_HOME || path.join(os.homedir(), 'agent-office'));
 }
 
-/** Keep the office's own data out of git without touching the project's .gitignore. */
-export function excludeFromGit(dir: string) {
+/** Keep the office's own data (or another `entry` it writes into the project) out of git without touching the project's .gitignore. */
+export function excludeFromGit(dir: string, entry = '.agent-office/') {
   try {
     const gitDir = execFileSync('git', ['rev-parse', '--git-common-dir'], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     const exclude = path.resolve(dir, gitDir, 'info', 'exclude');
     const cur = existsSync(exclude) ? readFileSync(exclude, 'utf8') : '';
-    if (!cur.split('\n').some((l) => l.trim() === '.agent-office/' || l.trim() === '.agent-office')) {
+    if (!cur.split('\n').some((l) => l.trim() === entry || l.trim() === entry.replace(/\/$/, ''))) {
       mkdirSync(path.dirname(exclude), { recursive: true });
-      appendFileSync(exclude, `${cur && !cur.endsWith('\n') ? '\n' : ''}.agent-office/\n`);
+      appendFileSync(exclude, `${cur && !cur.endsWith('\n') ? '\n' : ''}${entry}\n`);
     }
   } catch {
     // not a git repo; nothing to exclude
@@ -229,7 +240,10 @@ export function loadConfig(argv: string[]): Config {
   let webhook = process.env.AGENT_OFFICE_WEBHOOK;
   let city = process.env.AGENT_OFFICE_CITY || '';
   let weather = process.env.AGENT_OFFICE_WEATHER || '';
+  let realTimeSky = process.env.AGENT_OFFICE_SKY_CLOCK === 'real';
   const iceServers: RTCIceServerLike[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+  // A container can't take --turn (deploy/container/compose.yaml), so the TURN servers come from the environment too.
+  for (const url of (process.env.AGENT_OFFICE_TURN ?? '').split(/\s+/).filter(Boolean)) iceServers.push(parseTurn(url));
 
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -308,6 +322,9 @@ export function loadConfig(argv: string[]): Config {
         break;
       case '--weather':
         weather = takeValue(argv, i++, a);
+        break;
+      case '--real-time-sky':
+        realTimeSky = true;
         break;
       default:
         if (a.startsWith('-')) {
@@ -445,6 +462,7 @@ export function loadConfig(argv: string[]): Config {
     webhook,
     city: city.trim() || undefined,
     weather: (weather as Weather) || undefined,
+    realTimeSky,
   };
 }
 

@@ -38,7 +38,7 @@ They're in `core/registry.ts`, and each is a field of `ctx`. Every registration 
 - **`input/`** is the keyboard (`keyboard.ts`, which hands every press to `ctx.keys`), aiming and clicking (`pointer.ts`), and windows and the game taking turns with both (`focus.ts`).
 - **`state/`** is the store. `store.ts` declares the core fields (who you are, the people, the floors, and the floor you're on with its workers, screens, boards and queue), and `core.ts` keeps them up to date. Everything else is a slice in `state/slices/`: a module that adds its fields and topics to `Store` and `Topics` (`declare module '../store'`), sets where they start (`init`), and says what it takes in from each server message (`on`) and from each floor you arrive on (`enter`). Slices run in the order of `SLICES` in `state/slices/index.ts`, which is the order their topics fire in, so a new one goes at the end. Features follow a topic with `store.on('<topic>', fn)`. What the browser remembers between visits is `persist.ts`.
 - **`ui/`** is the app shell: the HUD, the menu and the windows (settings, the palette, terminals, changes, the queue, and the GitHub windows in `ui/github/`). Each module imports its own stylesheet (`import './palette.css'`), as a feature's `ui.ts` does (`import './ui.css'`).
-- **`world/`** is the engine and the scenery: toon materials and shapes (`toon.ts`), the characters (`world/character/`), the office floor (`world/office/`), the castle (`world/castle/`), the scenic loop, the sky and the city. The types they share (what you bump into, what you can use, the seats, `Office`) are in `world/types.ts`.
+- **`world/`** is the engine and the scenery: toon materials and shapes (`toon.ts`), the characters (`world/character/`), the office floor (`world/office/`), the castle (`world/castle/`), the space station (`world/station/`), the scenic loop, the sky and the city. The types they share (what you bump into, what you can use, the seats, `Office`) are in `world/types.ts`.
 - **`sound/`** is the office's sound. `OfficeSound` (`sound/index.ts`, the `ctx.sound` every part uses) is a facade over `AudioCore` (`sound/core.ts`: the audio context, its buses, where your ears are) and the recipes, each in a file of its own, here (`weather.ts`, `steps.ts`) or in its feature's folder (`features/gong/sound.ts`).
 - **`shared/`** (`src/client/shared/`) is what the 3D office and the 2D view at `/lite` both use: the tab title and hiring. The 2D view loads no three.js and nothing from `core/`, `features/`, `input/`, `world/` or `player/`; `tests/client-structure.test.ts` follows `lite.ts`'s imports to check.
 
@@ -55,6 +55,7 @@ They're in `core/registry.ts`, and each is a field of `ctx`. Every registration 
 - **`hooks/`** is the loopback-only hook server the workers call: their agents' hook events (`/hooks/<provider>`), the board agents' queue (`/office/queue`) and `office-workers` (`/office/workers`).
 - **`workers/`** is the worker manager (`WorkerManager` in `workers/manager.ts`) and its pieces: worktrees, pull requests, tasks, terminals, ACP workers, and saving to `workers.json`. `src/server/workers.ts` re-exports it for the modules that imported it from there.
 - **`providers/`** holds one adapter per agent CLI (see [Adding an agent provider](#adding-an-agent-provider)).
+- **`tunnel/`** is `agent-office tunnel`, the one part that runs on someone's own computer instead of the office's: it asks the office for the workers' web servers (`/api/services`, in `http/routes/services.ts`) and listens on each one's port there. It imports nothing from the office but what the two say to each other (`tunnel/wire.ts`) and the cookie's name.
 
 The rest of `src/server/` is a module per service or per thing a floor keeps (`dog.ts`, `jukebox.ts`, `queue.ts`, `meetings.ts`), made by the office or by each `Floor` (`floor.ts`).
 
@@ -82,7 +83,7 @@ Its HTTP routes, if it has any, go in `http/routes/`, and its tests in `tests/`.
 
 ## Adding an agent provider
 
-One adapter file in `src/server/providers/`, one entry in `PROVIDERS` in `src/server/providers/index.ts`, and one row in `src/shared/providers.ts` (its id in `AGENT_PROVIDERS`, its entry in `PROVIDER_META`). The typecheck fails until all three are there. What reads them, and the two places that still name providers one by one, are in [Provider seams](dsh-acp-integration.md#provider-seams).
+One adapter file in `src/server/providers/`, one entry in `PROVIDERS` in `src/server/providers/index.ts`, and one row in `src/shared/providers.ts` (its id in `AGENT_PROVIDERS`, its entry in `PROVIDER_META`). The typecheck fails until all three are there. Its row says which models and efforts it takes and how the hire dialog asks for them; one whose CLI lists its models gets a lister in `src/server/models.ts` too. What reads them, and the one place that still names providers one by one, are in [Provider seams](dsh-acp-integration.md#provider-seams).
 
 ## The size guard
 

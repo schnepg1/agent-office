@@ -28,12 +28,14 @@ agent-office [dir] [options]
       --self-signed       Serve HTTPS with a generated self-signed cert
       --trust-proxy       Trust X-Forwarded-* (behind Caddy/nginx)
       --turn <url>        Add a TURN server for voice, e.g. turn:user:pass@host:3478
+                          (env AGENT_OFFICE_TURN, several separated by spaces)
       --budget <usd>      Daily tracked Claude Code budget (OpenCode/Codex/Grok/Muse/DSH excluded)
       --budget-pause      ...and nobody can hire a new worker until the next day
       --max-workers <n>   Run at most n workers at once, across every floor (env AGENT_OFFICE_MAX_WORKERS)
       --webhook <url>     Post to this Slack / Discord webhook when a worker needs input or finishes
       --city <name>       Put the office in a real city: its sun and live weather (open-meteo.com)
       --weather <kind>    Pin the weather: clear, cloudy, rain, storm, snow or fog
+      --real-time-sky     Start the sky on the real clock, not a day an hour (env AGENT_OFFICE_SKY_CLOCK=real; ⚙️ Settings can switch it)
 
 agent-office setup [--projects <dir>] [--project <owner/repo>]... [--home <dir>]
 
@@ -52,4 +54,11 @@ agent-office accounts [list | invite [name] [--admin] | revoke <name> | role <na
 
   Invite, list and revoke people's own accounts, and switch the shared password
   off or on. Works while the office runs.
+
+agent-office tunnel [office@address | url] [--port <n>] [--office-port <n>] [--name <name>] [--password <pw>] [--no-open] [--insecure] [-- <ssh options>]
+
+  On your own computer, for an office that runs somewhere else: every web server
+  a worker starts there opens on the same port here, by itself, and closes when
+  the worker stops it. Given an SSH address it opens the tunnel to the office too.
+  See docs/tunnel.md.
 ```

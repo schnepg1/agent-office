@@ -31,9 +31,9 @@ export interface WorkerInfo {
   /** 'agent' runs the selected provider; 'shell' is a plain shared login shell. */
   kind: WorkerKind;
   provider?: AgentProvider;
-  /** Model requested for this worker, instead of the office's configured default: an OpenCode provider/model id, a Claude model alias, a Grok/Muse model id, or an opaque DeepSeek Harness catalog id. */
+  /** Model requested for this worker, instead of the office's configured default: a Claude model alias, an OpenCode provider/model id, a Codex, Grok, Muse or Pi model id, or an opaque DeepSeek Harness catalog id. What its session says it runs on is `usage.model`. */
   model?: string;
-  /** Reasoning effort requested for this worker, when one was chosen (Claude, Grok, Muse or DeepSeek Harness). */
+  /** Reasoning effort requested for this worker, when one was chosen. */
   effort?: AgentEffort;
   deskId: string;
   name: string;
@@ -59,8 +59,10 @@ export interface WorkerInfo {
    * home. `branch` says where its branch still is: in the project, only on origin, or nowhere.
    */
   lost?: { branch: LostBranch };
-  /** The pull request opened from this desk for the worktree branch (see 'worker.pr'). */
+  /** Its pull request: opened from this desk for the worktree branch (see 'worker.pr'), by itself with `gh pr create`, or said to be its own. */
   pr?: { number: number; url: string };
+  /** The pull requests it opened itself before `pr`: while one of them is open, its work hasn't all landed. */
+  pastPrs?: number[];
   /**
    * Other floors' repositories it works in too, for a task that spans them. It then starts in a
    * workspace folder with a worktree of each repository in it, its own floor's (`worktree`) and
@@ -152,8 +154,9 @@ export const FLAG_INVERSE = 2;
 export const FLAG_DIM = 4;
 
 /**
- * A worker sent home on a map that locks them up (see MapPlan.sendHome): who it was, and when it was
- * locked up, which is how far it has wasted away since.
+ * A worker sent home on a map that keeps them (see MapPlan.sendHome): locked up in the castle's
+ * dungeon, or adrift outside the station's airlock. Who it was, and when it went, which is how far it
+ * has wasted away (and, adrift, how far off it has got) since.
  */
 export interface Prisoner {
   id: string;
@@ -165,14 +168,14 @@ export interface Prisoner {
   workedMs?: number;
 }
 
-/** A floor's dungeon: everyone locked up in it, first to last, and how many from before them are only bones on the heap now. */
+/** Everyone a floor has kept (in its dungeon, or adrift outside its airlock), first to last, and how many from before them are only bones on the heap now. */
 export interface JailState {
   prisoners: Prisoner[];
   bones: number;
 }
 
 export type WorkerClientMsg =
-  /** With `issue`, the worker is there for that GitHub issue: it's assigned on GitHub (so it moves to In progress) and taken off the queue. */
+  /** With `issue`, the worker is there for that GitHub issue: it moves to In progress at once, is assigned on GitHub (which keeps it there) and taken off the queue. */
   /** With `repos` (other floors' ids), the worker works in their repositories too, each in a worktree of its own (see WorkerInfo.repos). */
   | { t: 'worker.spawn'; deskId: string; prompt?: string; worktree?: boolean; kind?: WorkerKind; provider?: AgentProvider; model?: string; effort?: AgentEffort; issue?: number; repos?: string[]; via?: 'herald' }
   | { t: 'worker.resume'; workerId: string }
